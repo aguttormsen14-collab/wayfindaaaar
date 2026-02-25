@@ -29,17 +29,17 @@ const SCREENS = {
     bg: ASSETS.menu,
     hotspots: [
       { id: "menu1", x: 0.531, y: 0.282, w: 0.35, h: 0.107, go: "floors", label: "Menu 1" },
-      { id: "menu2", x: 0.40, y: 0.70, w: 0.18, h: 0.12, go: "floors", label: "Menu 2" },
-      { id: "menu3", x: 0.60, y: 0.70, w: 0.18, h: 0.12, go: "floors", label: "Menu 3" },
-      { id: "menu4", x: 0.80, y: 0.70, w: 0.18, h: 0.12, go: "floors", label: "Menu 4" }
+      { id: "menu2", x: 0.532, y: 0.465, w: 0.366, h: 0.099, go: "floors", label: "Menu 2" },
+      { id: "menu3", x: 0.533, y: 0.615, w: 0.365, h: 0.108, go: "floors", label: "Menu 3" },
+      { id: "menu4", x: 0.532, y: 0.781, w: 0.375, h: 0.115, go: "floors", label: "Menu 4" }
     ],
     pulses: []
   },
   floors: {
     bg: ASSETS.floors,
     hotspots: [
-      { id: "back_to_menu", x: 0.10, y: 0.10, w: 0.12, h: 0.08, go: "menu", label: "Back" },
-      { id: "to_map1", x: 0.50, y: 0.70, w: 0.25, h: 0.15, go: "map1", label: "Map 1" }
+      { id: "back_to_menu", x: 0.527, y: 0.627, w: 0.372, h: 0.101, go: "menu", label: "Back" },
+      { id: "to_map1", x: 0.535, y: 0.627, w: 0.372, h: 0.101, go: "map1", label: "Map 1" }
     ],
     pulses: []
   },
@@ -62,8 +62,8 @@ const SCREENS = {
       { id: "telenor", x: 0.69, y: 0.64, w: 0.08, h: 0.08, label: "Telenor" }
     ],
     pulses: [
-      { id: "elkjop", x: 0.206, y: 0.303 },
-      { id: "telia", x: 0.305, y: 0.224 },
+      { id: "elkjop", x: 0.207, y: 0.333 },
+      { id: "telia", x: 0.306, y: 0.258 },
       { id: "telenor", x: 0.52, y: 0.516 }
     ]
   }
