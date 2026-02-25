@@ -71,7 +71,7 @@ const SCREENS = {
   tech_map1: {
     bg: ASSETS.tech_map1,
     hotspots: [
-      { id: "back_to_map1", x: 0.815, y: 0.007, w: 0.356, h: 0.072, go: "map1", label: "Back" },
+      { id: "back_to_map1", x: 0.814, y: 0.069, w: 0.356, h: 0.072, go: "map1", label: "Back" },
       { id: "elkjop", x: 0.27, y: 0.45, w: 0.08, h: 0.08, label: "Elkjøp" },
       { id: "telia", x: 0.41, y: 0.37, w: 0.08, h: 0.08, label: "Telia" },
       { id: "telenor", x: 0.69, y: 0.64, w: 0.08, h: 0.08, label: "Telenor" }
