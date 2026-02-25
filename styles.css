@@ -232,3 +232,14 @@ html, body {
   border: none;
   font-size: 20px;
 }
+
+/* Smooth screen transitions */
+#screen {
+  transition: opacity 220ms ease;
+  opacity: 1;
+  will-change: opacity;
+}
+
+#screen.is-fading {
+  opacity: 0;
+}

@@ -145,17 +145,25 @@ function safeSetBackground(url){
     screenEl.style.backgroundImage = '';
     return;
   }
+
+  // Fade out quickly
+  screenEl.classList.add('is-fading');
+
   // preload to detect load failures
   const img = new Image();
-  img.onload = () => { screenEl.style.backgroundImage = `url("${url}")`; };
+  img.onload = () => {
+    screenEl.style.backgroundImage = `url("${url}")`;
+    // fade in next frame
+    requestAnimationFrame(() => screenEl.classList.remove('is-fading'));
+  };
   img.onerror = () => {
     console.warn('Background image failed to load:', url);
-    // fallback to idle image if possible
     if(url !== ASSETS.idle){
       console.warn('Falling back to idle background');
       safeSetBackground(ASSETS.idle);
     } else {
       screenEl.style.backgroundImage = '';
+      requestAnimationFrame(() => screenEl.classList.remove('is-fading'));
     }
   };
   img.src = url;
