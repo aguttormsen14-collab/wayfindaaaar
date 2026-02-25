@@ -12,6 +12,8 @@ const ASSETS = {
   menu: "assets/menu.png",
   floors: "assets/floors.png",
   map1: "assets/map1.png",
+  map2: "assets/map2.png",
+  map3: "assets/map3.png",
   tech_map1: "assets/tech_map1.png",
 };
 
@@ -42,11 +44,18 @@ const SCREENS = {
     pulses: []
   },
   floors: {
-    bg: ASSETS.floors,
-    hotspots: [
-      { id: "back_to_menu", x: 0.532, y: 0.779, w: 0.372, h: 0.101, go: "menu", label: "Back" },
-      { id: "to_map1", x: 0.532, y: 0.618, w: 0.372, h: 0.101, go: "map1", label: "Map 1" }
-    ],
+  bg: ASSETS.floors,
+  hotspots: [
+    { id: "back_to_menu", x: 0.532, y: 0.779, w: 0.372, h: 0.101, go: "menu" },
+
+    { id: "to_map1", x: 0.532, y: 0.618, w: 0.372, h: 0.101, go: "map1" },
+
+    { id: "to_map2", x: 0.532, y: 0.470, w: 0.372, h: 0.101, go: "map2" },
+
+    { id: "to_map3", x: 0.532, y: 0.322, w: 0.372, h: 0.101, go: "map3" }
+  ],
+  pulses: []
+},
     pulses: []
   },
   map1: {
@@ -72,7 +81,16 @@ const SCREENS = {
       { id: "telia", x: 0.306, y: 0.258 },
       { id: "telenor", x: 0.52, y: 0.516 }
     ]
+    HOTSPOTS.map2 = [
+  { id:"to_map1", x:0.92, y:0.12, w:0.07, h:0.06, go:"map1" },
+  { id:"to_map3", x:0.92, y:0.20, w:0.07, h:0.06, go:"map3" },
+];
+
+HOTSPOTS.map3 = [
+  { id:"to_map1", x:0.92, y:0.12, w:0.07, h:0.06, go:"map1" },
+  { id:"to_map2", x:0.92, y:0.20, w:0.07, h:0.06, go:"map2" },
   }
+
 };
 
 let SLOT_NAMES = ["slot1","slot2","slot3"];
