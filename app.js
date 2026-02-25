@@ -1,6 +1,6 @@
 (() => {
 
-const DEBUG = true; // Set to true to enable drag & drop debug editor
+const DEBUG = false; // Set to true to enable drag & drop debug editor
 let editMode = false; // true while ArrowDown is held
 
 // Ordered list of screens for left/right navigation
@@ -46,11 +46,11 @@ const SCREENS = {
   map1: {
     bg: ASSETS.map1,
     hotspots: [
-      { id: "back_to_floors", x: 0.90, y: 0.10, w: 0.10, h: 0.08, go: "floors", label: "Back" },
-      { id: "to_tech_map", x: 0.80, y: 0.70, w: 0.12, h: 0.12, go: "tech_map1", label: "Tech" }
+      { id: "back_to_floors", x: 0.164, y: 0.046, w: 0.225, h: 0.059, go: "floors", label: "Back" },
+      { id: "to_tech_map", x: 0.791, y: 0.046, w: 0.236, h: 0.061, go: "tech_map1", label: "Tech" }
     ],
     pulses: [
-      { id: "you_are_here", x: 0.416, y: 0.544 }
+      { id: "you_are_here", x: 0.415, y: 0.538 }
     ]
   },
   tech_map1: {
