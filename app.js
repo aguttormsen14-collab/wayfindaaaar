@@ -9,10 +9,10 @@ const SCREEN_ORDER = ["idle","menu","floors","map1","tech_map1"];
 
 const ASSETS = {
   idle: "assets/idle.png",
-  menu: "assets/menu.jpg",
-  floors: "assets/floors.jpg",
-  map1: "assets/map1.jpg",
-  tech_map1: "assets/tech_map1.jpg",
+  menu: "assets/menu.png",
+  floors: "assets/floors.png",
+  map1: "assets/map1.png",
+  tech_map1: "assets/tech_map1.png",
 };
 
 const PLAYLIST_URL = "assets/ads/playlist.json";
