@@ -41,28 +41,27 @@ const SCREENS = {
     pulses: []
   },
   menu: {
-    bg: ASSETS.menu,
-    hotspots: [
-      { id: "menu1", x: 0.301, y: 0.382, w: 0.35, h: 0.107, go: "floors", label: "Menu 1" },
-      { id: "menu2", x: 0.734, y: 0.384, w: 0.366, h: 0.099, go: "floors", label: "Menu 2" },
-      { id: "menu3", x: 0.296, y: 0.659, w: 0.365, h: 0.108, go: "floors", label: "Menu 3" },
-      { id: "menu4", x: 0.732, y: 0.656, w: 0.365, h: 0.108, go: "floors", label: "Menu 4" }
-      { id: "back_to_idle", x: 0.125, y: 0.06, w: 0.237, h: 0.067, go: "idle", label: "Back to Idle" }
-    ],
-    pulses: []
-  },
+  bg: ASSETS.menu,
+  hotspots: [
+    { id: "menu1", x: 0.301, y: 0.382, w: 0.35,  h: 0.107, go: "floors", label: "Menu 1" },
+    { id: "menu2", x: 0.734, y: 0.384, w: 0.366, h: 0.099, go: "floors", label: "Menu 2" },
+    { id: "menu3", x: 0.296, y: 0.659, w: 0.365, h: 0.108, go: "floors", label: "Menu 3" },
+    { id: "menu4", x: 0.732, y: 0.656, w: 0.365, h: 0.108, go: "floors", label: "Menu 4" },
+    { id: "back_to_idle", x: 0.125, y: 0.06, w: 0.237, h: 0.067, go: "idle", label: "Back to Idle" }
+  ],
+  pulses: []
+},
   floors: {
-    bg: ASSETS.floors,
-    hotspots: [
-      { id: "back_to_menu", x: 0.532, y: 0.779, w: 0.372, h: 0.101, go: "menu" },
-      { id: "to_map1", x: 0.532, y: 0.618, w: 0.372, h: 0.101, go: "map1" },
-      { id: "to_map2", x: 0.534, y: 0.437, w: 0.372, h: 0.101, go: "map2" },
-      { id: "to_map3", x: 0.536, y: 0.28, w: 0.372, h: 0.101, go: "map3" }
-      { id: "to_map3", x: 0.536, y: 0.28, w: 0.372, h: 0.101, go: "map3" }
-      { id: "back_to_menu", x: 0.168, y: 0.098, w: 0.243, h: 0.074, go: "menu" }
-    ],
-    pulses: []
-  },
+  bg: ASSETS.floors,
+  hotspots: [
+    { id: "back_to_menu", x: 0.532, y: 0.779, w: 0.372, h: 0.101, go: "menu" },
+    { id: "to_map1",      x: 0.532, y: 0.618, w: 0.372, h: 0.101, go: "map1" },
+    { id: "to_map2",      x: 0.534, y: 0.437, w: 0.372, h: 0.101, go: "map2" },
+    { id: "to_map3",      x: 0.536, y: 0.280, w: 0.372, h: 0.101, go: "map3" },
+    { id: "corner_back_to_menu", x: 0.168, y: 0.098, w: 0.243, h: 0.074, go: "menu" }
+  ],
+  pulses: []
+},
   map1: {
     bg: ASSETS.map1,
     hotspots: [
