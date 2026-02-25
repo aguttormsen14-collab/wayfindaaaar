@@ -156,6 +156,13 @@ async function applyLayout(screenName){
     debugFitEl.style.top = fit.top + 'px';
     debugFitEl.style.width = fit.width + 'px';
     debugFitEl.style.height = fit.height + 'px';
+    // ensure debugContainer matches fit rect if present
+    if(debugContainer){
+      debugContainer.style.left = fit.left + 'px';
+      debugContainer.style.top = fit.top + 'px';
+      debugContainer.style.width = fit.width + 'px';
+      debugContainer.style.height = fit.height + 'px';
+    }
   } else if(debugFitEl){ debugFitEl.remove(); debugFitEl = null; }
 
   // layout hotspots
@@ -258,29 +265,35 @@ function clearDebugEditor() {
   }
 }
 
-function renderDebugEditor(screenName) {
+async function renderDebugEditor(screenName) {
   clearDebugEditor();
-  
+
   if (!SCREENS[screenName]) return;
   const config = SCREENS[screenName];
-  
-  // Create debug container
+
+  // Compute fit rect for this screen and make debug container match that rect
+  const fit = await getFitRectForCurrentScreen(screenName);
+
   debugContainer = document.createElement('div');
   debugContainer.className = 'debug-container';
-  // pointer-events depends on whether editMode is active
   debugContainer.style.pointerEvents = (DEBUG && editMode) ? 'auto' : 'none';
+  debugContainer.style.left = fit.left + 'px';
+  debugContainer.style.top = fit.top + 'px';
+  debugContainer.style.width = fit.width + 'px';
+  debugContainer.style.height = fit.height + 'px';
+  debugContainer.style.position = 'absolute';
   hotspotsEl.appendChild(debugContainer);
-  
-  // Render hotspot editors
+
+  // Render hotspot editors (positions are percentages inside debugContainer)
   config.hotspots.forEach((h, idx) => {
-    renderHotspotBox(debugContainer, h, screenName, idx);
+    renderHotspotBox(debugContainer, h, screenName, idx, fit);
   });
-  
+
   // Render pulse editors
   config.pulses.forEach((p, idx) => {
-    renderPulseDot(debugContainer, p, screenName, idx);
+    renderPulseDot(debugContainer, p, screenName, idx, fit);
   });
-  
+
   // Show help text
   debugHelp = document.createElement('div');
   debugHelp.className = 'debug-help';
@@ -288,11 +301,11 @@ function renderDebugEditor(screenName) {
     `<strong>DEBUG EDITOR</strong><br>` +
     `🟨 Yellow boxes = hotspots | Drag to move, drag corner to resize<br>` +
     `🟦 Cyan dots = pulses | Drag to move<br>` +
-    `No clicks registered in debug mode. Ready to copy/paste output!`;
+    `Hold ArrowDown to edit (editMode).`;
   document.body.appendChild(debugHelp);
 }
 
-function renderHotspotBox(container, hotspot, screenName, hotspotIdx) {
+function renderHotspotBox(container, hotspot, screenName, hotspotIdx, fit) {
   const box = document.createElement('div');
   box.className = 'debug-box';
   box.dataset.screenName = screenName;
@@ -345,8 +358,10 @@ function renderHotspotBox(container, hotspot, screenName, hotspotIdx) {
     
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const dX = (clientX - startX) / hotspotsEl.offsetWidth;
-    const dY = (clientY - startY) / hotspotsEl.offsetHeight;
+    // compute deltas relative to the debug container (fit rect)
+    const rect = container.getBoundingClientRect();
+    const dX = (clientX - startX) / rect.width;
+    const dY = (clientY - startY) / rect.height;
     
     if (isDragging) {
       hotspot.x = clamp01(startX1 + dX);
@@ -354,6 +369,7 @@ function renderHotspotBox(container, hotspot, screenName, hotspotIdx) {
       updateBoxStyle(box, hotspot);
       updateLabelText(label, hotspot);
     } else if (isResizing) {
+      // resizing adjusts width/height (normalized)
       hotspot.w = clamp01(startW + dX);
       hotspot.h = clamp01(startH + dY);
       updateBoxStyle(box, hotspot);
@@ -383,7 +399,7 @@ function renderHotspotBox(container, hotspot, screenName, hotspotIdx) {
   container.appendChild(box);
 }
 
-function renderPulseDot(container, pulse, screenName, pulseIdx) {
+function renderPulseDot(container, pulse, screenName, pulseIdx, fit) {
   const dot = document.createElement('div');
   dot.className = 'debug-dot';
   dot.dataset.screenName = screenName;
@@ -417,12 +433,13 @@ function renderPulseDot(container, pulse, screenName, pulseIdx) {
   
   const onMove = (e) => {
     if (!isDragging) return;
-    
+
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const dX = (clientX - startX) / hotspotsEl.offsetWidth;
-    const dY = (clientY - startY) / hotspotsEl.offsetHeight;
-    
+    const rect = container.getBoundingClientRect();
+    const dX = (clientX - startX) / rect.width;
+    const dY = (clientY - startY) / rect.height;
+
     pulse.x = clamp01(startX1 + dX);
     pulse.y = clamp01(startY1 + dY);
     updateDotStyle(dot, pulse);
