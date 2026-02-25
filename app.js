@@ -62,7 +62,7 @@ const SCREENS = {
       { id: "telenor", x: 0.69, y: 0.64, w: 0.08, h: 0.08, label: "Telenor" }
     ],
     pulses: [
-      { id: "elkjop", x: 0.207, y: 0.333 },
+      { id: "elkjop", x: 0.206, y: 0.328 },
       { id: "telia", x: 0.306, y: 0.258 },
       { id: "telenor", x: 0.52, y: 0.516 }
     ]
