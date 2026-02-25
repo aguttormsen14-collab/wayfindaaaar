@@ -48,8 +48,9 @@ const SCREENS = {
     hotspots: [
       { id: "back_to_menu", x: 0.532, y: 0.779, w: 0.372, h: 0.101, go: "menu" },
       { id: "to_map1", x: 0.532, y: 0.618, w: 0.372, h: 0.101, go: "map1" },
-      { id: "to_map2", x: 0.532, y: 0.470, w: 0.372, h: 0.101, go: "map2" },
-      { id: "to_map3", x: 0.532, y: 0.322, w: 0.372, h: 0.101, go: "map3" }
+      { id: "to_map2", x: 0.534, y: 0.437, w: 0.372, h: 0.101, go: "map2" },
+      { id: "to_map3", x: 0.537, y: 0.276, w: 0.372, h: 0.101, go: "map3" }
+      { id: "back_to_menu", x: 0.168, y: 0.098, w: 0.235, h: 0.048, go: "menu" }
     ],
     pulses: []
   },
@@ -80,7 +81,7 @@ const SCREENS = {
   map2: {
     bg: ASSETS.map2,
     hotspots: [
-      { id:"to_map1", x:0.92, y:0.12, w:0.07, h:0.06, go:"map1" },
+      { id:"back_to_menu", x:0.265, y:0.059, w:0.243, h:0.067, go:"menu" },
       { id:"to_map3", x:0.92, y:0.20, w:0.07, h:0.06, go:"map3" }
     ],
     pulses: []
@@ -88,7 +89,7 @@ const SCREENS = {
   map3: {
     bg: ASSETS.map3,
     hotspots: [
-      { id:"to_map1", x:0.92, y:0.12, w:0.07, h:0.06, go:"map1" },
+      { id:"back_to_menu", x:0.265, y:0.059, w:0.243, h:0.067, go:"menu" },
       { id:"to_map2", x:0.92, y:0.20, w:0.07, h:0.06, go:"map2" }
     ],
     pulses: []
