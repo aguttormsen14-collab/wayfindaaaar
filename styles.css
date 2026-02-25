@@ -13,7 +13,7 @@ html, body {
 #screen {
   position: absolute;
   inset: 0;
-  background: black center / cover no-repeat;
+  background: black center / contain no-repeat;
   z-index: 0;
   pointer-events: none;
 }

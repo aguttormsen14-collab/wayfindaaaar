@@ -112,54 +112,128 @@ function clearHotspots(){
 }
 
 // Render actual hotspots and pulses for the current screen
+// Ensure we can compute the visible image rect (fit rect) for mapping normalized coordinates
+const imageSizeCache = {};
+function ensureImageSize(url){
+  if(!url) return Promise.resolve({w:1,h:1});
+  if(imageSizeCache[url]) return Promise.resolve(imageSizeCache[url]);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      imageSizeCache[url] = {w: img.naturalWidth || img.width, h: img.naturalHeight || img.height};
+      resolve(imageSizeCache[url]);
+    };
+    img.onerror = () => { imageSizeCache[url] = {w:1,h:1}; resolve(imageSizeCache[url]); };
+    img.src = url;
+  });
+}
+
+async function getFitRectForCurrentScreen(screenName){
+  const cfg = SCREENS[screenName] || {};
+  const url = cfg.bg || '';
+  const containerRect = hotspotsEl.getBoundingClientRect();
+  const cW = containerRect.width || window.innerWidth;
+  const cH = containerRect.height || window.innerHeight;
+  const img = await ensureImageSize(url);
+  const scale = Math.min(cW / img.w, cH / img.h);
+  const displayW = img.w * scale;
+  const displayH = img.h * scale;
+  const left = (cW - displayW) / 2;
+  const top = (cH - displayH) / 2;
+  return { left, top, width: displayW, height: displayH };
+}
+
+let debugFitEl = null;
+async function applyLayout(screenName){
+  const cfg = SCREENS[screenName];
+  if(!cfg) return;
+  const fit = await getFitRectForCurrentScreen(screenName);
+
+  // debug fit rect
+  if(DEBUG){
+    if(!debugFitEl){ debugFitEl = document.createElement('div'); debugFitEl.style.position='absolute'; debugFitEl.style.border='2px dashed lime'; debugFitEl.style.pointerEvents='none'; debugFitEl.style.zIndex='110'; if(debugContainer) debugContainer.appendChild(debugFitEl); else hotspotsEl.appendChild(debugFitEl); }
+    debugFitEl.style.left = fit.left + 'px';
+    debugFitEl.style.top = fit.top + 'px';
+    debugFitEl.style.width = fit.width + 'px';
+    debugFitEl.style.height = fit.height + 'px';
+  } else if(debugFitEl){ debugFitEl.remove(); debugFitEl = null; }
+
+  // layout hotspots
+  cfg.hotspots.forEach((h, i) => {
+    const el = hotspotsEl.querySelector(`[data-hotspot-idx="${i}"]`);
+    if(!el) return;
+    const pxLeft = fit.left + h.x * fit.width;
+    const pxTop = fit.top + h.y * fit.height;
+    const pxW = Math.max(2, h.w * fit.width);
+    const pxH = Math.max(2, h.h * fit.height);
+    el.style.left = pxLeft + 'px';
+    el.style.top = pxTop + 'px';
+    el.style.width = pxW + 'px';
+    el.style.height = pxH + 'px';
+    el.style.transform = 'translate(-50%, -50%)';
+  });
+
+  // layout pulses
+  cfg.pulses.forEach((p, i) => {
+    const el = hotspotsEl.querySelector(`[data-pulse-idx="${i}"]`);
+    if(!el) return;
+    const pxLeft = fit.left + p.x * fit.width;
+    const pxTop = fit.top + p.y * fit.height;
+    el.style.left = pxLeft + 'px';
+    el.style.top = pxTop + 'px';
+  });
+}
+
+// re-layout on resize/orientation
+window.addEventListener('resize', () => { if(currentScreen) applyLayout(currentScreen); });
+window.addEventListener('orientationchange', () => { if(currentScreen) applyLayout(currentScreen); });
+
+// Render actual hotspots and pulses for the current screen (mapped to image fit rect)
 function setScreen(screenName) {
   if (!SCREENS[screenName]) return console.error("Unknown screen:", screenName);
   currentScreen = screenName;
   const config = SCREENS[screenName];
-  
+
   clearHotspots();
   stopAds();
   safeSetBackground(config.bg);
-  
-  // Render hotspots
-  config.hotspots.forEach(h => {
+
+  // create hotspots with data attributes so layout can set px coords
+  config.hotspots.forEach((h, i) => {
     const btn = document.createElement('button');
     btn.className = 'hotspot';
+    btn.dataset.hotspotIdx = String(i);
+    btn.dataset.screenName = screenName;
     btn.setAttribute('aria-label', h.label || h.id);
     btn.style.position = 'absolute';
-    btn.style.left = (h.x * 100) + '%';
-    btn.style.top = (h.y * 100) + '%';
-    btn.style.width = (h.w * 100) + '%';
-    btn.style.height = (h.h * 100) + '%';
-    btn.style.transform = 'translate(-50%, -50%)';
     btn.style.pointerEvents = 'auto';
-    
-    btn.addEventListener('pointerdown', (ev) => {
-      // When in DEBUG editMode, block navigation so editor can handle interactions
-      if (DEBUG && editMode) {
-        ev.stopPropagation();
-        ev.preventDefault();
-        return;
-      }
+    btn.style.transform = 'translate(-50%, -50%)';
 
+    btn.addEventListener('pointerdown', (ev) => {
+      if (DEBUG && editMode) { ev.stopPropagation(); ev.preventDefault(); return; }
       ev.stopPropagation();
       ev.preventDefault();
       resetIdleTimer();
       if (h.go) setScreen(h.go);
     });
-    
+
     hotspotsEl.appendChild(btn);
   });
-  
-  // Render pulses
-  config.pulses.forEach(p => {
-    const pulse = document.createElement('div');
-    pulse.className = 'pulse';
-    pulse.style.left = (p.x * 100) + '%';
-    pulse.style.top = (p.y * 100) + '%';
-    hotspotsEl.appendChild(pulse);
+
+  // create pulse elements
+  config.pulses.forEach((p, i) => {
+    const pul = document.createElement('div');
+    pul.className = 'pulse';
+    pul.dataset.pulseIdx = String(i);
+    pul.dataset.screenName = screenName;
+    pul.style.position = 'absolute';
+    pul.style.pointerEvents = 'none';
+    hotspotsEl.appendChild(pul);
   });
-  
+
+  // apply pixel layout
+  applyLayout(screenName);
+
   // Render debug editor if enabled
   if (DEBUG) {
     renderDebugEditor(screenName);
