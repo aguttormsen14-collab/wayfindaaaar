@@ -140,31 +140,46 @@ function round3(v) {
 }
 
 // String helpers
+let bgFadeToken = 0;
+let currentBgUrl = "";
+
 function safeSetBackground(url){
+  const token = ++bgFadeToken;
+
   if(!url){
     screenEl.style.backgroundImage = '';
+    currentBgUrl = '';
     return;
   }
 
-  // Fade out quickly
+  // Hvis samme bilde -> gjør en veldig kort “microfade”
+  const same = (url === currentBgUrl);
+
+  // Fade out
   screenEl.classList.add('is-fading');
 
-  // preload to detect load failures
+  // Fallback: aldri bli stuck i is-fading (f.eks. hvis onload ikke fyrer)
+  const timeout = setTimeout(() => {
+    if(token !== bgFadeToken) return;
+    screenEl.style.backgroundImage = `url("${url}")`;
+    currentBgUrl = url;
+    requestAnimationFrame(() => screenEl.classList.remove('is-fading'));
+  }, same ? 60 : 400);
+
   const img = new Image();
   img.onload = () => {
+    if(token !== bgFadeToken) return;
+    clearTimeout(timeout);
     screenEl.style.backgroundImage = `url("${url}")`;
-    // fade in next frame
+    currentBgUrl = url;
     requestAnimationFrame(() => screenEl.classList.remove('is-fading'));
   };
   img.onerror = () => {
+    if(token !== bgFadeToken) return;
+    clearTimeout(timeout);
     console.warn('Background image failed to load:', url);
-    if(url !== ASSETS.idle){
-      console.warn('Falling back to idle background');
-      safeSetBackground(ASSETS.idle);
-    } else {
-      screenEl.style.backgroundImage = '';
-      requestAnimationFrame(() => screenEl.classList.remove('is-fading'));
-    }
+    if(url !== ASSETS.idle) safeSetBackground(ASSETS.idle);
+    else requestAnimationFrame(() => screenEl.classList.remove('is-fading'));
   };
   img.src = url;
 }
@@ -265,6 +280,7 @@ function setScreen(screenName) {
 
   clearHotspots();
   stopAds();
+  videoEl.style.display = 'none';
   safeSetBackground(config.bg);
 
   // create hotspots with data attributes so layout can set px coords
