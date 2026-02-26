@@ -87,6 +87,8 @@ function stopAdsNow() {
 }
 
 // SINGLE SOURCE OF TRUTH for ads countdown reset
+// This function ONLY stops timers/ads, does NOT schedule new ones
+// Scheduling happens explicitly in setScreen() when entering idle
 function resetAdsCountdown(reason) {
   // Always stop any running ads timer
   stopIdleToAdsTimer();
@@ -96,11 +98,8 @@ function resetAdsCountdown(reason) {
     stopAdsNow();
   }
   
-  // Only schedule new ads if we're on idle screen
-  // This prevents ads from popping up while user navigates
-  if (currentScreen === 'idle') {
-    scheduleAdsAfterIdle();
-  }
+  // Note: we do NOT schedule new timer here
+  // setScreen() will call scheduleAdsAfterIdle() when entering idle
 }
 
 function isAdsScreen(id) {
@@ -541,6 +540,12 @@ function setScreen(screenName) {
   if (goingToIdle) {
     lastIdleTs = Date.now();
   }
+  
+  // Give user full 30s when entering map screens
+  const isMapScreen = screenName && (screenName.startsWith('map') || screenName.includes('map'));
+  if (isMapScreen) {
+    resetIdleTimer(); // Ensure full 30s to view the map
+  }
 
 clearHotspots();
 stopAds();
@@ -563,12 +568,17 @@ safeSetBackground(config.bg);
       ev.stopPropagation();
       ev.preventDefault();
       
-      // Reset both idle timer AND ads countdown
-      resetIdleTimer();
-      resetAdsCountdown('hotspot-click');
-      
-      if (h.go) setScreen(h.go);
-      else if (h.storeId) openStorePopup(h.storeId);
+      // Handle navigation/popup FIRST, then reset timers
+      if (h.go) {
+        setScreen(h.go);
+        resetIdleTimer();
+        // resetAdsCountdown will be called by setScreen if going to idle
+        // otherwise we just stopped the timer when leaving idle
+      } else if (h.storeId) {
+        openStorePopup(h.storeId);
+        resetIdleTimer();
+        resetAdsCountdown('store-popup');
+      }
     });
 
     hotspotsEl.appendChild(btn);
@@ -597,7 +607,8 @@ safeSetBackground(config.bg);
 
   // if we just moved to idle screen, schedule auto-start of ads
   if(screenName === 'idle'){
-    resetAdsCountdown('enter-idle');
+    // Always schedule ads when entering idle (fresh timer)
+    scheduleAdsAfterIdle();
   }
 
   // update hint visibility after screen change
@@ -1451,13 +1462,26 @@ function init(){
   document.body.appendChild(catcher);
   catcher.addEventListener('pointerdown', (e) => {
     e.preventDefault();
+    e.stopPropagation();
     
-    // Cleanup and return to idle
+    // Return to idle (setScreen will handle resetAdsCountdown)
     clearMapArtifacts();
     setScreen('idle');
     showIdleBackground();
-    // resetAdsCountdown will be called by setScreen when entering idle
   });
+
+  // CAPTURE PHASE listener - runs BEFORE all other handlers
+  // This ensures BOTH timers are reset on ANY tap, even if hotspots stopPropagation
+  document.addEventListener('pointerdown', (ev) => {
+    // Always reset idle timer (30s before return to idle from other screens)
+    resetIdleTimer();
+    
+    // If on idle screen, reset ads countdown
+    if (currentScreen === 'idle' && !adsRunning) {
+      stopIdleToAdsTimer(); // Stop current timer
+      scheduleAdsAfterIdle(); // Start fresh 10s countdown
+    }
+  }, { capture: true }); // CAPTURE = runs before hotspots
 
   // global tap handler - SINGLE SOURCE OF TRUTH for ads reset
   document.addEventListener('pointerdown', (ev) => {
@@ -1473,10 +1497,6 @@ function init(){
       // resetAdsCountdown will be called by setScreen when entering idle
       return;
     }
-    
-    // Always reset ads countdown on any tap
-    // This prevents ads from starting while user is navigating
-    resetAdsCountdown('pointerdown');
   });
 
   // always render idle immediately
