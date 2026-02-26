@@ -140,59 +140,62 @@ function round3(v) {
 }
 
 // String helpers
-let bgFadeToken = 0;
-let currentBgUrl = "";
+const bgA = document.getElementById('bgA');
+const bgB = document.getElementById('bgB');
 
-function safeSetBackground(url){
-  const token = ++bgFadeToken;
+let bgToken = 0;
+let bgFront = 'A';         // which layer is currently visible
+let bgCurrent = '';
+
+function crossfadeBackground(url){
+  const token = ++bgToken;
 
   if(!url){
-    screenEl.style.backgroundImage = '';
-    currentBgUrl = '';
+    bgA.style.backgroundImage = '';
+    bgB.style.backgroundImage = '';
+    bgA.style.opacity = '0';
+    bgB.style.opacity = '0';
+    bgCurrent = '';
     return;
   }
 
-  const same = (url === currentBgUrl);
+  // if same image: do a tiny pulse so it still "feels" responsive
+  const same = (url === bgCurrent);
 
-  // RESET fade state so transition always triggers
-  screenEl.classList.remove('is-fading');
-  void screenEl.offsetHeight;              // force reflow
-  screenEl.classList.add('is-fading');     // start fade-out
-  void screenEl.offsetHeight;              // force again (stabil på kiosk devices)
+  const frontEl = (bgFront === 'A') ? bgA : bgB;
+  const backEl  = (bgFront === 'A') ? bgB : bgA;
 
-  const finish = () => {
-    if(token !== bgFadeToken) return;
+  // load into back layer
+  backEl.style.backgroundImage = `url("${url}")`;
 
-    screenEl.style.backgroundImage = `url("${url}")`;
-    currentBgUrl = url;
+  // ensure back starts hidden, then fade it in
+  backEl.style.opacity = '0';
+  void backEl.offsetHeight;
 
-    // dobbel rAF = stabil fade-in på mange Android/Chromium builds
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if(token !== bgFadeToken) return;
-        screenEl.classList.remove('is-fading');
-      });
-    });
-  };
+  // always fade-in back
+  requestAnimationFrame(() => {
+    if(token !== bgToken) return;
+    backEl.style.opacity = '1';
+    // fade out front (unless nothing there)
+    frontEl.style.opacity = same ? '1' : '0';
+  });
 
-  // Hvis samme bilde: microfade (så det alltid føles likt)
-  if(same){
-    setTimeout(finish, 60);
-    return;
-  }
+  // after transition, swap “front”
+  setTimeout(() => {
+    if(token !== bgToken) return;
+    // if same, do a micro pulse: fade out then in quickly
+    if(same){
+      backEl.style.opacity = '0.92';
+      requestAnimationFrame(()=> backEl.style.opacity = '1');
+    }
+    bgFront = (bgFront === 'A') ? 'B' : 'A';
+    bgCurrent = url;
+  }, 300);
+}
 
-  // Timeout fallback (cache/edge cases)
-  const t = setTimeout(finish, 450);
-
-  const img = new Image();
-  img.onload = () => { clearTimeout(t); finish(); };
-  img.onerror = () => {
-    clearTimeout(t);
-    console.warn('Background image failed to load:', url);
-    if(url !== ASSETS.idle) safeSetBackground(ASSETS.idle);
-    else screenEl.classList.remove('is-fading');
-  };
-  img.src = url;
+// keep name so resten av koden din funker
+function safeSetBackground(url){
+  crossfadeBackground(url);
 }
 
 function clearHotspots(){

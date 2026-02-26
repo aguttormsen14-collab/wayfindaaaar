@@ -234,12 +234,29 @@ html, body {
 }
 
 /* Smooth screen transitions */
-#screen {
-  transition: opacity 220ms ease;
-  opacity: 1;
-  will-change: opacity;
+#screen{
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
-#screen.is-fading {
+/* two background layers */
+.bg-layer{
+  position: absolute;
+  inset: 0;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: contain; /* matcher fit-rect følelsen */
   opacity: 0;
+  transition: opacity 260ms ease;
+  will-change: opacity;
+  z-index: 1;
+}
+
+/* keep UI above backgrounds */
+#video, #hotspots{
+  position: absolute;
+  inset: 0;
+  z-index: 5;
 }
