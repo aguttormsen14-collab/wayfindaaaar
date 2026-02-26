@@ -258,6 +258,10 @@ function ensureAdsLayer(){
 function showAdsOverlay(){
   const layer = ensureAdsLayer();
   clearMapArtifacts();
+  
+  // Close any open store popup before showing ads
+  closeStorePopup();
+  
   layer.classList.add('show');
   layer.classList.remove('hidden');
   adsRunning = true;
@@ -558,7 +562,11 @@ safeSetBackground(config.bg);
       if (DEBUG && editMode) { ev.stopPropagation(); ev.preventDefault(); return; }
       ev.stopPropagation();
       ev.preventDefault();
+      
+      // Reset both idle timer AND ads countdown
       resetIdleTimer();
+      resetAdsCountdown('hotspot-click');
+      
       if (h.go) setScreen(h.go);
       else if (h.storeId) openStorePopup(h.storeId);
     });
@@ -1305,6 +1313,7 @@ function nextAd(){
 
 function showIdleBackground(){
   clearMapArtifacts();
+  closeStorePopup(); // Close any store popup when returning to idle
   stopAds();
   safeSetBackground(ASSETS.idle);
   markRendered();
