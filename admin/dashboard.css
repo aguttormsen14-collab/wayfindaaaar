@@ -1,0 +1,19 @@
+/* simple admin dashboard page */
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: sans-serif;
+  background: #282;
+  color: #111;
+}
+
+dashboard-container {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+dashboard-container h1 {
+  margin-bottom: 24px;
+}

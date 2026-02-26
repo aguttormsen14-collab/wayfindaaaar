@@ -1,0 +1,37 @@
+/* simple centered login form */
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: sans-serif;
+  background: #222;
+  color: #eee;
+}
+
+.login-container {
+  max-width: 320px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.login-container h1 {
+  margin-bottom: 24px;
+  font-size: 1.5rem;
+}
+
+.login-container input {
+  width: 100%;
+  padding: 8px;
+  margin: 4px 0 12px;
+  box-sizing: border-box;
+}
+
+.login-container button {
+  padding: 8px 16px;
+  font-size: 1rem;
+}
+
+.message {
+  color: #f55;
+  height: 1.2em;
+}

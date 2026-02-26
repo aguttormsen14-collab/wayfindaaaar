@@ -855,10 +855,19 @@ document.addEventListener('keyup', (e) => {
   }
 }, {passive:false});
 
+// === DEBUG + admin link helpers ===
+function updateAdminLink(){
+  const el = document.getElementById('adminLink');
+  if(el){
+    el.style.display = DEBUG ? 'block' : 'none';
+  }
+}
+
 // === DEBUG TOGGLE ===
 function setDebugMode(enabled){
   DEBUG = !!enabled;
   console.log('DEBUG:', DEBUG ? 'ON' : 'OFF');
+  updateAdminLink();
   if(DEBUG){
     if(currentScreen) renderDebugEditor(currentScreen);
   } else {
@@ -1079,6 +1088,8 @@ async function startAdsLoop(){
 }
 
 function init(){
+  // ensure admin link visibility follows debug
+  updateAdminLink();
   safeSetBackground(ASSETS.idle);
   videoEl.style.display = 'none';
   videoEl.addEventListener('error', () => { console.warn('video error'); videoEl.style.display='none'; });

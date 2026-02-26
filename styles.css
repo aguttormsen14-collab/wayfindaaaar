@@ -200,6 +200,21 @@ html, body {
   line-height: 1.4;
 }
 
+/* admin shortcut link, visible only in debug mode */
+#adminLink {
+  position: fixed;
+  bottom: 5px;
+  right: 5px;
+  font-size: 10px;
+  color: #fff;
+  background: rgba(0,0,0,0.4);
+  padding: 2px 4px;
+  border-radius: 3px;
+  z-index: 1000;
+  display: none;
+}
+}
+
 /* Modal for store info */
 .modal {
   position: fixed;
