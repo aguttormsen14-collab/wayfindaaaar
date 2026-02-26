@@ -18,8 +18,13 @@ function withBase(path) {
 }
 
 // show immediate error if supabase client not ready
+function isSupabaseReady() {
+  const s = window.supabase;
+  return !!(s && s.storage && typeof s.createClient !== 'function');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  if (!window.supabase) {
+  if (!isSupabaseReady()) {
     const msgEl = document.getElementById('adsMessage');
     if (msgEl) {
       msgEl.textContent = '❌ Supabase client not initialized';
@@ -59,6 +64,7 @@ function buildAdsPrefix() {
 
 /** Helper: public URL from storage */
 function getPublicUrl(bucket, fullPath) {
+  const supabase = getSupabase();
   if (!supabase) return '';
   const res = supabase.storage.from(bucket).getPublicUrl(fullPath);
   return res?.data?.publicUrl || res?.publicURL || res?.publicUrl || '';
@@ -66,6 +72,7 @@ function getPublicUrl(bucket, fullPath) {
 
 /** Load ads list from storage */
 async function loadAds() {
+  const supabase = getSupabase();
   if (!supabase) return [];
   const cfg = getCfg();
   const prefix = buildAdsPrefix();
@@ -109,6 +116,7 @@ async function loadAds() {
 
 /** Upload files to storage */
 async function uploadFiles(fileList, onProgress) {
+  const supabase = getSupabase();
   if (!supabase) {
     console.error('[ADMIN] Supabase client not initialized');
     if (onProgress) onProgress('❌ Supabase client not initialized');
@@ -163,6 +171,7 @@ async function uploadFiles(fileList, onProgress) {
 
 /** Delete file from storage */
 async function deleteFile(fullPath) {
+  const supabase = getSupabase();
   if (!supabase) return false;
   const cfg = getCfg();
 
@@ -242,6 +251,7 @@ function initUploadZone(zoneEl, messageEl, onComplete) {
 
   preventGlobalFileOpen();
 
+  const supabase = getSupabase();
   if (!supabase) {
     zoneEl.textContent = '❌ Supabase client not initialized';
     zoneEl.style.color = '#dc2626';

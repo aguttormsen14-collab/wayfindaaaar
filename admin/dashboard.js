@@ -83,11 +83,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // If supabase lib missing
-  if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+  // If supabase client not ready (singleton should have replaced the global)
+  const s = window.supabase;
+  const supabaseReady = !!(s && s.storage && typeof s.createClient !== 'function');
+  if (!supabaseReady) {
     showBootError(
-      'Supabase CDN-biblioteket er ikke lastet (window.supabase mangler).',
-      'Sjekk at https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/supabase.min.js lastes med 200 i Network.'
+      'Supabase CDN-biblioteket er ikke lastet eller klienten er ikke klar.',
+      'Sjekk at v2‑CDN lastes med 200 i Network og at supabase-config.js kjører uten feil.'
     );
     updateStatusPanel();
     return;
