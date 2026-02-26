@@ -14,7 +14,8 @@
     <div class="card">
 
       <div class="header">
-        <img src="../assets/brand/saxvik-hub-logo.png" alt="Saxvik Hub" class="logo-header">
+        <img src="../assets/brand/saxvik-hub-logo.png" alt="Saxvik Hub" class="logo-header"
+          data-asset="assets/brand/saxvik-hub-logo.png">
         <div class="hgroup">
           <h1>Saxvik Admin</h1>
           <p>Wayfinding kontrollpanel</p>
@@ -63,6 +64,19 @@
 
   <!-- Login page logic -->
   <script src="login.js"></script>
+
+  <!-- GitHub Pages asset path fixup (uses SX_BASE_PATH from base-path.js) -->
+  <script>
+    function asset(path) {
+      return `${window.SX_BASE_PATH || "/"}${path}`;
+    }
+    document.querySelectorAll('[data-asset]').forEach((el) => {
+      const p = el.getAttribute('data-asset');
+      if (!p) return;
+      if (el.tagName === 'IMG' || el.tagName === 'SCRIPT') el.src = asset(p);
+      else if (el.tagName === 'LINK') el.href = asset(p);
+    });
+  </script>
 
   <!-- Preflight validation -->
   <script>

@@ -1,6 +1,33 @@
 // admin/admin-ads.js — Supabase ads management (library only, no auto-init)
 
-let supabaseClient = null;
+function getSupabase() {
+  const s = window.supabase;
+
+  // A valid client has .storage and does NOT expose createClient
+  if (s && s.storage && typeof s.createClient !== "function") {
+    return s;
+  }
+
+  return null;
+}
+
+// helper to prefix local asset paths when needed
+function withBase(path) {
+  const base = window.SX_BASE_PATH || '/';
+  return `${base}${path}`.replace(/\/\/+/g, '/');
+}
+
+// show immediate error if supabase client not ready
+document.addEventListener('DOMContentLoaded', () => {
+  if (!window.supabase) {
+    const msgEl = document.getElementById('adsMessage');
+    if (msgEl) {
+      msgEl.textContent = '❌ Supabase client not initialized';
+      msgEl.style.color = '#dc2626';
+    }
+    console.error('[ADMIN] Supabase client not initialized');
+  }
+});
 
 /** Prevent browser from opening dropped files (global) */
 function preventGlobalFileOpen() {
@@ -22,39 +49,7 @@ function getCfg() {
   return window.getSupabaseConfig();
 }
 
-/** Supabase client init */
-async function initSupabaseClient() {
-  if (typeof window.isSupabaseConfigured !== 'function' || !window.isSupabaseConfigured()) {
-    console.warn('[ADMIN] Supabase not configured or helper missing');
-    return null;
-  }
 
-  if (!window.supabase || typeof window.supabase.createClient !== 'function') {
-    console.warn('[ADMIN] supabase-js CDN not loaded (window.supabase missing)');
-    return null;
-  }
-
-  const cfg = getCfg();
-  if (!cfg?.url || !cfg?.anonKey || !cfg?.bucket) {
-    console.warn('[ADMIN] config incomplete:', cfg);
-    return null;
-  }
-
-  supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey);
-  console.log('[ADMIN] Supabase client initialized');
-  console.log('[ADMIN] config:', { url: cfg.url, bucket: cfg.bucket, installSlug: cfg.installSlug });
-
-  // Non-blocking storage check
-  try {
-    const { error } = await supabaseClient.storage.from(cfg.bucket).list('', { limit: 1 });
-    if (error) console.warn('[ADMIN] ⚠️ Storage access failed:', error.message);
-    else console.log('[ADMIN] ✅ Storage connection verified');
-  } catch (e) {
-    console.warn('[ADMIN] ⚠️ Connection check failed:', e?.message || e);
-  }
-
-  return supabaseClient;
-}
 
 /** Ads prefix WITHOUT trailing slash for storage.list() */
 function buildAdsPrefix() {
@@ -64,18 +59,19 @@ function buildAdsPrefix() {
 
 /** Helper: public URL from storage */
 function getPublicUrl(bucket, fullPath) {
-  const res = supabaseClient.storage.from(bucket).getPublicUrl(fullPath);
+  if (!supabase) return '';
+  const res = supabase.storage.from(bucket).getPublicUrl(fullPath);
   return res?.data?.publicUrl || res?.publicURL || res?.publicUrl || '';
 }
 
 /** Load ads list from storage */
 async function loadAds() {
-  if (!supabaseClient) return [];
+  if (!supabase) return [];
   const cfg = getCfg();
   const prefix = buildAdsPrefix();
 
   try {
-    const { data, error } = await supabaseClient.storage.from(cfg.bucket).list(prefix, {
+    const { data, error } = await supabase.storage.from(cfg.bucket).list(prefix, {
       limit: 200,
       offset: 0,
     });
@@ -113,17 +109,13 @@ async function loadAds() {
 
 /** Upload files to storage */
 async function uploadFiles(fileList, onProgress) {
-  if (typeof window.isSupabaseConfigured !== 'function' || !window.isSupabaseConfigured()) {
-    alert('Supabase ikke konfigurert – fyll inn config.js');
-    return [];
-  }
-  if (!window.supabase?.createClient) {
-    alert('Supabase biblioteket er ikke lastet (CDN).');
+  if (!supabase) {
+    console.error('[ADMIN] Supabase client not initialized');
+    if (onProgress) onProgress('❌ Supabase client not initialized');
     return [];
   }
 
   const cfg = getCfg();
-  const client = window.supabase.createClient(cfg.url, cfg.anonKey);
   const prefix = buildAdsPrefix();
   const bucket = cfg.bucket;
   const uploaded = [];
@@ -134,18 +126,10 @@ async function uploadFiles(fileList, onProgress) {
     const dot = file.name.lastIndexOf('.');
     let ext = dot >= 0 ? file.name.slice(dot).toLowerCase() : '';
 
-    // If no extension: allow only image/png -> treat as .png
-    if (!ext) {
-      if (file.type === 'image/png') {
-        ext = '.png';
-      } else {
-        const msg = 'Unsupported file type';
-        console.warn('[ADMIN] Unsupported file type (no extension):', { name: file.name, type: file.type });
-        if (onProgress) onProgress(msg);
-        continue;
-      }
+    // simple filter for allowed extensions
+    if (!ext && file.type === 'image/png') {
+      ext = '.png';
     }
-
     if (!supportedExt.includes(ext)) {
       const msg = 'Unsupported file type';
       console.warn('[ADMIN] Skipping unsupported file:', { name: file.name, type: file.type, ext });
@@ -153,32 +137,23 @@ async function uploadFiles(fileList, onProgress) {
       continue;
     }
 
-    const timestamp = Date.now();
-    const uuid =
-      (crypto?.randomUUID && crypto.randomUUID()) || Math.random().toString(36).slice(2, 11);
-
-    const filename = `${timestamp}-${uuid}${ext}`;
-    const fullPath = `${prefix}/${filename}`;
-
-    console.log('[ADMIN] Uploading', file.name, 'as', fullPath);
-    if (onProgress) onProgress(`Laster opp ${file.name}…`);
+    const fullPath = `installs/${cfg.installSlug}/assets/ads/${file.name}`;
+    console.log('[ADMIN] Uploading to:', fullPath);
+    if (onProgress) onProgress(`Uploading ${file.name}...`);
 
     try {
-      const { error } = await client.storage.from(bucket).upload(fullPath, file, { upsert: false });
+      const { error } = await supabase.storage.from(bucket).upload(fullPath, file, { upsert: true });
       if (error) {
-        console.error('[ADMIN] Upload error for', file.name, error);
-        const status = error.statusCode ?? error.status ?? '';
-        const statusTxt = status !== '' ? ` (status: ${status})` : '';
-        const msg = `Upload failed: ${error.message || 'Unknown error'}${statusTxt}`;
+        console.error('[ADMIN] Upload failed:', error);
+        const msg = `❌ Upload failed: ${error.message || 'Unknown error'}`;
         if (onProgress) onProgress(msg);
         continue;
       }
-      uploaded.push(filename);
+      if (onProgress) onProgress(`✅ Uploaded: ${file.name}`);
+      uploaded.push(file.name);
     } catch (e) {
-      console.error('[ADMIN] Upload exception for', file.name, e);
-      const status = e?.statusCode ?? e?.status ?? '';
-      const statusTxt = status !== '' ? ` (status: ${status})` : '';
-      const msg = `Upload failed: ${e?.message || 'Unknown error'}${statusTxt}`;
+      console.error('[ADMIN] Upload exception:', e);
+      const msg = `❌ Upload failed: ${e?.message || 'Unknown error'}`;
       if (onProgress) onProgress(msg);
     }
   }
@@ -188,11 +163,11 @@ async function uploadFiles(fileList, onProgress) {
 
 /** Delete file from storage */
 async function deleteFile(fullPath) {
-  if (!supabaseClient) return false;
+  if (!supabase) return false;
   const cfg = getCfg();
 
   try {
-    const { error } = await supabaseClient.storage.from(cfg.bucket).remove([fullPath]);
+    const { error } = await supabase.storage.from(cfg.bucket).remove([fullPath]);
     if (error) {
       console.error('[ADMIN] Delete error:', error);
       return false;
@@ -267,8 +242,8 @@ function initUploadZone(zoneEl, messageEl, onComplete) {
 
   preventGlobalFileOpen();
 
-  if (!supabaseClient) {
-    zoneEl.textContent = '❌ Supabase ikke konfigurert';
+  if (!supabase) {
+    zoneEl.textContent = '❌ Supabase client not initialized';
     zoneEl.style.color = '#dc2626';
     return;
   }

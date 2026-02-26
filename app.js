@@ -1,5 +1,22 @@
 (() => {
 
+function getSupabase() {
+  const s = window.supabase;
+
+  // A valid client has .storage and does NOT expose createClient
+  if (s && s.storage && typeof s.createClient !== "function") {
+    return s;
+  }
+
+  return null;
+}
+
+// helper to prefix any local asset paths with the GitHub Pages base path
+function withBase(path) {
+  const base = window.SX_BASE_PATH || '/';
+  return `${base}${path}`.replace(/\/\/+/g, '/');
+}
+
 // === DEBUG TOGGLE ===
 let DEBUG = false; // runtime-toggleable debug flag
 let editMode = false; // true while ArrowDown is held
@@ -8,7 +25,7 @@ let editMode = false; // true while ArrowDown is held
 const params = new URLSearchParams(location.search);
 const INSTALL_ID = params.get("install") || "amfi-steinkjer";
 
-const BASE_ASSETS = `installs/${INSTALL_ID}/assets`;
+const BASE_ASSETS = withBase(`installs/${INSTALL_ID}/assets`);
 const SCREEN_ASSETS = `${BASE_ASSETS}/screens`;
 const ADS_ASSETS = `${BASE_ASSETS}/ads`;
 const STORES_ASSETS = `${BASE_ASSETS}/stores`;
@@ -28,8 +45,8 @@ const ASSETS = {
 
 
 // === ADS POLLING ===
-// poll interval for listing ads (demo: 60s, prod 2min)
-const ADS_POLL_MS = 60 * 1000; // 60 seconds for live‑reload demo
+// poll interval for listing ads (15s)
+const ADS_POLL_MS = 15 * 1000; // 15 seconds
 let lastAdsSig = "";
 let adsPollTimer = null;
 
@@ -118,16 +135,13 @@ function makeAdsSignature(ads){
 }
 
 
-// supabase client (optional, configured via globals)
-let supabaseClient = null;
-if(window.supabase && window.isSupabaseConfigured()){
-  const cfg = window.getSupabaseConfig();
-  console.log('[ADS] cfg:', cfg);
-  supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey);
+// supabase client (singleton provided by supabase-config.js)
+// we will use the global `supabase` variable defined above.
+if (supabase && window.isSupabaseConfigured && window.isSupabaseConfigured()) {
+  console.log('[ADS] supabase singleton ready');
 } else {
-  console.warn('Supabase not configured – ad playback disabled');
+  console.warn('[ADS] Supabase not configured – ad playback disabled');
 }
-
 
 const IDLE_TIMEOUT_MS = 30000;
 
@@ -709,18 +723,18 @@ function makePlaylistSignature(){
   }catch(e){ return ''+Date.now(); }
 }
 
-// helper: return the storage prefix for ads using config
+// helper: return the storage prefix for ads using config (no trailing slash)
 function getAdsPrefix(cfg){
-  return `installs/${cfg.installSlug}/assets/ads/`;
+  return `installs/${cfg.installSlug}/assets/ads`;
 }
 
 // list all ad files from Supabase and return metadata array
 async function listAdsFromSupabase(cfg){
-  if(!supabaseClient) return [];
+  if (!supabase) return [];
   const prefix = getAdsPrefix(cfg);
   console.log('[ADS] prefix:', prefix);
-  const { data, error } = await supabaseClient.storage.from(cfg.bucket || 'saxvik-hub').list(prefix, { limit: 200, offset: 0 });
-  if(error){
+  const { data, error } = await supabase.storage.from(cfg.bucket || 'saxvik-hub').list(prefix, { limit: 200, offset: 0 });
+  if (error) {
     console.error('[ADS] list error', error);
     return [];
   }
@@ -731,18 +745,62 @@ async function listAdsFromSupabase(cfg){
         })
         .sort((a,b)=>a.name.localeCompare(b.name));
   return files.map(f=>{
-     const path = prefix + f.name;
-     const url = supabaseClient.storage.from(cfg.bucket || 'saxvik-hub').getPublicUrl(path).publicURL;
+     const path = `${prefix}/${f.name}`;
+     const url = supabase.storage.from(cfg.bucket || 'saxvik-hub').getPublicUrl(path).data?.publicUrl || '';
      const lower = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
      const isVideo = ['.mp4','.webm','.mov'].includes(lower);
      return { name: f.name, path, publicUrl: url, isVideo, mime: isVideo ? 'video/mp4' : '' };
   });
 }
 
+// fetch a fresh list of ads directly from Supabase and optionally start the loop
+async function loadAdsFromSupabase(){
+  if (!supabase) {
+    console.error('[ADS] Supabase client missing');
+    return;
+  }
+  const cfg = window.getSupabaseConfig();
+  const prefix = getAdsPrefix(cfg);
+  const { data, error } = await supabase.storage.from(cfg.bucket || 'saxvik-hub').list(prefix, {
+    limit: 200,
+    offset: 0,
+  });
+  if (error) {
+    console.error('[ADS] list error', error);
+    return;
+  }
+  if (!data || data.length === 0) {
+    showIdleBackground();
+    return;
+  }
+  const files = data
+    .filter(f => {
+      const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+      return ADS_EXT.includes(ext);
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  ADS = files.map(f => {
+    const path = `${prefix}/${f.name}`;
+    const url = supabase.storage.from(cfg.bucket || 'saxvik-hub').getPublicUrl(path).data?.publicUrl || '';
+    const lower = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+    const isVideo = ['.mp4','.webm','.mov'].includes(lower);
+    return { src: url, isVideo, mime: isVideo ? 'video/mp4' : '' };
+  });
+
+  if (ADS.length === 0) {
+    showIdleBackground();
+    return;
+  }
+  // start ads loop with the new set
+  adIndex = 0;
+  showAdByIndex(adIndex);
+}
+
 // buildAds fetches the list of media files from Supabase storage and populates ADS
 async function buildAds(){
   ADS = [];
-  if(!supabaseClient) {
+  if(!supabase) {
     console.warn('[ADS] Supabase client not initialized');
     return;
   }
@@ -758,17 +816,9 @@ async function buildAds(){
 }
 
 async function pollAdsAndReloadIfChanged(){
+  // simplified polling now just reloads from supabase
   try{
-    await buildAds();
-    const sig = makeAdsSignature(ADS);
-    if(sig !== lastAdsSig){
-      console.log('[ADS] updated:', ADS.length, 'files');
-      lastAdsSig = sig;
-      if(currentScreen === 'idle'){
-        stopAds();
-        startAdsLoop();
-      }
-    }
+    await loadAdsFromSupabase();
   }catch(e){ console.warn('[ADS] poll error', e); }
 }
 
@@ -1114,10 +1164,14 @@ function showAdByIndex(i){
   }
 }
 
-async function startAdsLoop(){
+async function startAdsLoop(adsList){
   stopAds();
   safeSetBackground(ASSETS.idle);
-  await buildAds();
+  if (Array.isArray(adsList)) {
+    ADS = adsList;
+  } else {
+    await buildAds();
+  }
   if(!ADS.length) return showIdleBackground();
   adIndex = 0;
   showAdByIndex(adIndex);
@@ -1132,18 +1186,17 @@ function init(){
   // initial load and ads
   (async () => {
     try{
-      await buildAds();
-      lastAdsSig = makeAdsSignature(ADS);
+      await loadAdsFromSupabase();
       setScreen('idle');
-      startAdsLoop();
-      // start ads polling
+      // start polling every 15 seconds
+      const POLL_MS = 15000;
       if(adsPollTimer) clearInterval(adsPollTimer);
-      adsPollTimer = setInterval(pollAdsAndReloadIfChanged, ADS_POLL_MS);
+      adsPollTimer = setInterval(loadAdsFromSupabase, POLL_MS);
     }catch(e){
       console.warn('init error', e);
-      // fallback
+      // fallback show idle
       setScreen('idle');
-      startAdsLoop();
+      showIdleBackground();
     }
   })();
   resetIdleTimer();

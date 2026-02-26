@@ -16,6 +16,7 @@
           alt="Saxvik Hub"
           class="logo"
           onerror="console.error('Logo ikke funnet:', this.src);"
+          data-asset="assets/brand/saxvik-hub-logo.png"
         />
         <div class="title-text">
           <h1>Saxvik Admin</h1>
@@ -78,6 +79,20 @@
   <script src="./admin-ads.js"></script>
   <script src="./dashboard.js"></script>
   
+  <!-- GitHub Pages asset path fixup (uses SX_BASE_PATH from base-path.js) -->
+  <script>
+    function asset(path) {
+      return `${window.SX_BASE_PATH || "/"}${path}`;
+    }
+    // Apply to any element with data-asset
+    document.querySelectorAll('[data-asset]').forEach((el) => {
+      const p = el.getAttribute('data-asset');
+      if (!p) return;
+      if (el.tagName === 'IMG' || el.tagName === 'SCRIPT') el.src = asset(p);
+      else if (el.tagName === 'LINK') el.href = asset(p);
+    });
+  </script>
+
   <!-- Preflight validation (verify critical scripts loaded) -->
   <script>
     // Check that supabase-config helpers are available
