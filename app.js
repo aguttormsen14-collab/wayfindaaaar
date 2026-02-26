@@ -28,7 +28,8 @@ const ASSETS = {
 
 
 // === ADS POLLING ===
-const PLAYLIST_POLL_MS = 2 * 60 * 1000; // 2 minutes (reuse variable name)
+// poll interval for listing ads (demo: 60s, prod 2min)
+const ADS_POLL_MS = 60 * 1000; // 60 seconds for live‑reload demo
 let lastAdsSig = "";
 let adsPollTimer = null;
 
@@ -106,14 +107,27 @@ const SCREENS = {
 const ADS_EXT = ['.jpg','.jpeg','.png','.webp','.mp4'];
 let AD_DURATION_MS = 8000;
 
+// helper used by diagnostics/polling signature
+function makeAdsSignature(ads){
+  try{
+    // stable signature based on path array
+    return ads.map(a=>a.path||a.src||'').join('|');
+  }catch(e){
+    return String(Date.now());
+  }
+}
+
+
 // supabase client (optional, configured via globals)
 let supabaseClient = null;
 if(window.supabase && window.isSupabaseConfigured()){
   const cfg = window.getSupabaseConfig();
+  console.log('[ADS] cfg:', cfg);
   supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey);
 } else {
   console.warn('Supabase not configured – ad playback disabled');
 }
+
 
 const IDLE_TIMEOUT_MS = 30000;
 
@@ -346,6 +360,12 @@ safeSetBackground(config.bg);
     renderDebugEditor(screenName);
   } else {
     clearDebugEditor();
+  }
+
+  // if we just moved to idle screen, kick off ads loop
+  if(screenName === 'idle'){
+    // don't await; startAdsLoop handles empty-ADS case itself
+    startAdsLoop();
   }
 }
 
@@ -689,41 +709,62 @@ function makePlaylistSignature(){
   }catch(e){ return ''+Date.now(); }
 }
 
-// buildAds fetches the list of media files from Supabase storage and populates ADS
-async function buildAds(){
-  ADS = [];
-  if(!supabaseClient) return;
-  const prefix = `installs/${INSTALL_ID}/assets/ads/`;
-  const { data, error } = await supabaseClient.storage.from('saxvik-hub').list(prefix, { limit: 200, offset: 0 });
-  if(error){ console.warn('ads list error', error); return; }
+// helper: return the storage prefix for ads using config
+function getAdsPrefix(cfg){
+  return `installs/${cfg.installSlug}/assets/ads/`;
+}
+
+// list all ad files from Supabase and return metadata array
+async function listAdsFromSupabase(cfg){
+  if(!supabaseClient) return [];
+  const prefix = getAdsPrefix(cfg);
+  console.log('[ADS] prefix:', prefix);
+  const { data, error } = await supabaseClient.storage.from(cfg.bucket || 'saxvik-hub').list(prefix, { limit: 200, offset: 0 });
+  if(error){
+    console.error('[ADS] list error', error);
+    return [];
+  }
   const files = data
         .filter(f => {
            const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
            return ADS_EXT.includes(ext);
         })
         .sort((a,b)=>a.name.localeCompare(b.name));
-  files.forEach(f=>{
+  return files.map(f=>{
      const path = prefix + f.name;
-     const url = supabaseClient.storage.from('saxvik-hub').getPublicUrl(path).publicURL;
+     const url = supabaseClient.storage.from(cfg.bucket || 'saxvik-hub').getPublicUrl(path).publicURL;
      const lower = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
      const isVideo = ['.mp4','.webm','.mov'].includes(lower);
-     ADS.push({ src: url, isVideo, mime: isVideo ? 'video/mp4' : '' });
+     return { name: f.name, path, publicUrl: url, isVideo, mime: isVideo ? 'video/mp4' : '' };
   });
+}
+
+// buildAds fetches the list of media files from Supabase storage and populates ADS
+async function buildAds(){
+  ADS = [];
+  if(!supabaseClient) return;
+  const cfg = window.getSupabaseConfig();
+  const list = await listAdsFromSupabase(cfg);
+  ADS = list.map(item => ({ src: item.publicUrl, isVideo: item.isVideo, mime: item.mime }));
+  console.log('[ADS] found:', ADS.length);
+  if(ADS.length === 0){
+    console.warn('[ADS] No files found. Check bucket path:', getAdsPrefix(window.getSupabaseConfig()));
+  }
 }
 
 async function pollAdsAndReloadIfChanged(){
   try{
     await buildAds();
-    const sig = makePlaylistSignature();
+    const sig = makeAdsSignature(ADS);
     if(sig !== lastAdsSig){
-      console.log('Ads list changed');
+      console.log('[ADS] updated:', ADS.length, 'files');
       lastAdsSig = sig;
       if(currentScreen === 'idle'){
         stopAds();
         startAdsLoop();
       }
     }
-  }catch(e){ console.warn('poll error', e); }
+  }catch(e){ console.warn('[ADS] poll error', e); }
 }
 
 // === ADMIN MODE ===
@@ -819,7 +860,17 @@ function updateAdminStatus(){
   if(!adminPanel) return;
   const st = adminPanel.querySelector('#adminStatus');
   if(!st) return;
-  const info = `screen: ${currentScreen}\nDEBUG: ${DEBUG}\nADS: ${ADS.length}`;
+  let info = `screen: ${currentScreen}\nDEBUG: ${DEBUG}\nADS: ${ADS.length}`;
+  if(DEBUG){
+    try{
+      const cfg = window.getSupabaseConfig();
+      const prefix = getAdsPrefix(cfg);
+      const now = new Date().toLocaleTimeString();
+      info += `\ninstallSlug: ${cfg.installSlug}`;
+      info += `\nprefix: ${prefix}`;
+      info += `\nlast update: ${now}`;
+    }catch(e){ /* ignore */ }
+  }
   st.textContent = info;
 }
 
@@ -1077,12 +1128,12 @@ function init(){
   (async () => {
     try{
       await buildAds();
-      lastAdsSig = makePlaylistSignature();
+      lastAdsSig = makeAdsSignature(ADS);
       setScreen('idle');
       startAdsLoop();
       // start ads polling
       if(adsPollTimer) clearInterval(adsPollTimer);
-      adsPollTimer = setInterval(pollAdsAndReloadIfChanged, PLAYLIST_POLL_MS);
+      adsPollTimer = setInterval(pollAdsAndReloadIfChanged, ADS_POLL_MS);
     }catch(e){
       console.warn('init error', e);
       // fallback
