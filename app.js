@@ -180,6 +180,43 @@ if (getSupabase() && window.isSupabaseConfigured && window.isSupabaseConfigured(
   console.warn('[ADS] Supabase not configured – ad playback disabled');
 }
 
+// ------------------ ads overlay helpers --------------------
+function ensureAdsLayer(){
+  if(adsLayer) return adsLayer;
+  const div = document.createElement('div');
+  div.id = 'adsLayer';
+  div.className = 'ads-layer hidden';
+  document.body.appendChild(div);
+  adsLayer = div;
+  // move video element into overlay
+  if(videoEl && videoEl.parentElement !== adsLayer){
+    adsLayer.appendChild(videoEl);
+    videoEl.style.zIndex = '1';
+    // ensure covers the overlay
+    videoEl.style.position = 'absolute';
+    videoEl.style.top = '0';
+    videoEl.style.left = '0';
+    videoEl.style.width = '100%';
+    videoEl.style.height = '100%';
+    videoEl.style.objectFit = 'cover';
+  }
+  return adsLayer;
+}
+
+function showAdsOverlay(){
+  const layer = ensureAdsLayer();
+  clearMapArtifacts();
+  layer.classList.add('show');
+  layer.classList.remove('hidden');
+  adsRunning = true;
+}
+
+function hideAdsOverlay(){
+  const layer = ensureAdsLayer();
+  layer.classList.remove('show');
+  adsRunning = false;
+}
+
 const IDLE_TIMEOUT_MS = 30000;
 
 // DOM refs
@@ -191,6 +228,9 @@ let ADS = [];
 let adIndex = 0;
 let adTimer = null;
 let adFallbackTimer = null;
+// overlay layer and state
+let adsLayer = null;
+let adsRunning = false;
 // === VIDEO FAILSAFE ===
 let videoWatchdogTimer = null;
 let videoMaxTimer = null;
@@ -1227,7 +1267,10 @@ function cleanupVideoPlayback(){
 }
 
 function nextAd(){
-  if(!ADS.length) return showIdleBackground();
+  if(!ADS.length) {
+    hideAdsOverlay();
+    return showIdleBackground();
+  }
   adIndex = (adIndex + 1) % ADS.length;
   showAdByIndex(adIndex);
 }
@@ -1243,11 +1286,17 @@ function showIdleBackground(){
 // === VIDEO FAILSAFE ===
 function showAdByIndex(i){
   if(!ADS.length) return showIdleBackground();
+  // ensure overlay visible for each ad
+  showAdsOverlay();
   const ad = ADS[i];
   markRendered();
 
   // cleanup any previous video playback state
   cleanupVideoPlayback();
+
+  const layer = ensureAdsLayer();
+  // remove previous image elements if any
+  Array.from(layer.children).forEach(c=>{ if(c !== videoEl) c.remove(); });
 
   if(ad.isVideo){
     // check mime/canPlayType
@@ -1260,14 +1309,13 @@ function showAdByIndex(i){
       return;
     }
 
-    // prepare video element
+    // prepare video element (already moved into overlay)
     videoEl.style.display = 'block';
     videoEl.muted = true;
     videoEl.playsInline = true;
     videoEl.preload = 'auto';
     videoEl.src = ad.src;
     videoEl.load();
-    safeSetBackground(ASSETS.idle);
 
     // set up watchdogs
     videoStarted = false;
@@ -1315,10 +1363,13 @@ function showAdByIndex(i){
       });
     }
   } else {
-    // image ad - display as background
+    // image ad - show inside overlay
     cleanupVideoPlayback();
     videoEl.style.display = 'none';
-    safeSetBackground(ad.src);
+    const layer = ensureAdsLayer();
+    const img = document.createElement('img');
+    img.src = ad.src;
+    layer.appendChild(img);
     if(adTimer) clearTimeout(adTimer);
     adTimer = setTimeout(nextAd, AD_DURATION_MS);
   }
@@ -1341,7 +1392,10 @@ async function startAdsLoop(adsList){
   } else {
     await buildAds();
   }
-  if(!ADS.length) return showIdleBackground();
+  if(!ADS.length) {
+    hideAdsOverlay();
+    return showIdleBackground();
+  }
   adIndex = 0;
   showAdByIndex(adIndex);
   updateTouchHintVisibility();
@@ -1358,6 +1412,12 @@ function init(){
   // global tap handler (records touch, handles passive screens)
   document.addEventListener('pointerdown', (ev) => {
     recordTouch();
+    if (adsRunning) {
+      hideAdsOverlay();
+      stopAds();
+      showWelcomeOverlay();
+      return;
+    }
     if (isPassiveScreen(currentScreen)) {
       // prevent hotspots / other behavior
       ev.preventDefault();
