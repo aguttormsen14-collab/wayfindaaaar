@@ -323,13 +323,15 @@ function showAdsTapCatcher(){
   const el = document.getElementById("adsTapCatcher");
   if (!el) return;
   el.classList.remove("hidden");
-  el.style.pointerEvents = "auto"; // Explicitly enable
+  el.style.display = "block"; // Ensure visible
+  el.style.pointerEvents = "auto"; // Ensure clickable
 }
 function hideAdsTapCatcher(){
   const el = document.getElementById("adsTapCatcher");
   if (!el) return;
   el.classList.add("hidden");
-  el.style.pointerEvents = "none"; // Explicitly disable
+  el.style.display = "none"; // Ensure hidden
+  el.style.pointerEvents = "none"; // Disable clicks
 }
 function stopAdsIfRunning(){ if(adsRunning && typeof stopAds==='function') stopAds(); }
 

@@ -252,11 +252,12 @@ html, body {
 .ads-tap {
   position: fixed;
   inset: 0;
-  z-index: 9996; /* above ads visuals, below fade/welcome */
+  z-index: 9996; /* above ads visuals (8000), below modals (9999) */
   background: transparent;
   pointer-events: none;
+  display: block;
 }
-.ads-tap.hidden { display: none; }
+.ads-tap.hidden { display: none !important; }
 
 /* admin shortcut link, visible only in debug mode */
 #adminLink {
