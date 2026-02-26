@@ -12,7 +12,7 @@
 
     <div class="topbar">
       <div class="title">
-        <img src="../assets/brand/saxvik-hub-logo.png" alt="Saxvik Hub" class="logo">
+        <img src="/assets/brand/saxvik-hub-logo.png" alt="Saxvik Hub" class="logo" onerror="console.error('Logo ikke funnet:', this.src);" />
         <div class="title-text">
           <h1>Saxvik Admin</h1>
           <p>Infoskjerm kontrollpanel</p>
@@ -34,7 +34,7 @@
       <div class="panel col-6">
         <h2>Reklame</h2>
         <div id="adsPanel">
-          <div id="uploadZone" class="upload-zone">
+          <div id="adsDropzone" class="upload-zone">
             📤 Dra og slipp bilder/video her
             <br><small style="opacity: 0.7;">(jpg, png, webp, mp4)</small>
           </div>
@@ -58,13 +58,13 @@
   </div>
 
   <!-- config and supabase -->
-  <script src="../config.local.js"></script>
-  <script src="../supabase-config.js"></script>
+  <script src="/config.local.js"></script>
+  <script src="/supabase-config.js"></script>
   <!-- supabase client library -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/supabase.min.js"></script>
   <!-- ads management -->
-  <script src="admin-ads.js"></script>
+  <script src="/admin/admin-ads.js"></script>
   <!-- dashboard app -->
-  <script src="dashboard.js"></script>
+  <script src="/admin/dashboard.js"></script>
 </body>
 </html>

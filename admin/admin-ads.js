@@ -16,6 +16,16 @@ function initSupabaseClient() {
   return supabaseClient;
 }
 
+// global prevention of default drag/drop so browser never opens files
+function preventGlobalFileOpen() {
+  ['dragenter','dragover','dragleave','drop'].forEach(evt => {
+    window.addEventListener(evt, e => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, {passive:false});
+  });
+}
+
 // Get the ads prefix path for current install
 function buildAdsPrefix() {
   const cfg = window.getSupabaseConfig();
@@ -62,47 +72,48 @@ async function loadAds() {
 
 // Upload files to storage
 async function uploadFiles(fileList, onProgress) {
-  if (!supabaseClient) {
-    console.error('Supabase client not initialized');
+  if (!window.isSupabaseConfigured()) {
+    alert('Supabase ikke konfigurert – fyll inn config.local.js');
     return [];
   }
-  
   const cfg = window.getSupabaseConfig();
-  const prefix = buildAdsPrefix();
+  const client = window.supabase.createClient(cfg.url, cfg.anonKey);
+  const prefix = `installs/${cfg.installSlug}/assets/ads/`;
+  const bucket = cfg.bucket;
   const uploaded = [];
-  
+
   for (const file of fileList) {
     const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
     if (!['.jpg', '.jpeg', '.png', '.webp', '.mp4'].includes(ext)) {
       console.warn('Skipping unsupported file:', file.name);
       continue;
     }
-    
-    // Use unique filename to avoid overwrites
+
     const timestamp = Date.now();
     const uuid = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9);
     const filename = `${timestamp}-${uuid}${ext}`;
     const fullPath = prefix + filename;
-    
+
+    console.log('Uploading', file.name, 'as', fullPath);
     if (onProgress) onProgress(`Laster opp ${file.name}…`);
-    
     try {
-      const { error } = await supabaseClient.storage
-        .from(cfg.bucket)
-        .upload(fullPath, file, { upsert: false });
-      
+      const { error } = await client.storage
+        .from(bucket)
+        .upload(fullPath, file);
       if (error) {
         console.error('Upload error for', file.name, error);
         if (onProgress) onProgress(`Feil: ${file.name}`);
         continue;
       }
-      
       uploaded.push(filename);
     } catch (e) {
       console.error('Upload exception for', file.name, e);
     }
   }
-  
+
+  if (window.loadAds) {
+    window.loadAds();
+  }
   return uploaded;
 }
 
@@ -212,31 +223,31 @@ function initUploadZone(zoneEl, messageEl, onComplete) {
   zoneEl.addEventListener('dragover', e => {
     e.preventDefault();
     e.stopPropagation();
-    zoneEl.classList.add('dragover');
+    zoneEl.classList.add('drag-active');
   });
   
   zoneEl.addEventListener('dragleave', e => {
     e.preventDefault();
     e.stopPropagation();
-    zoneEl.classList.remove('dragover');
+    zoneEl.classList.remove('drag-active');
   });
   
   zoneEl.addEventListener('drop', async e => {
     e.preventDefault();
     e.stopPropagation();
-    zoneEl.classList.remove('dragover');
-    
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length === 0) return;
-    
+    zoneEl.classList.remove('drag-active');
+
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
     const uploaded = await uploadFiles(files, msg => {
       if (messageEl) messageEl.textContent = msg;
     });
-    
+
     if (messageEl) {
       messageEl.textContent = `Lastet opp ${uploaded.length} fil(er)`;
     }
-    
+
     if (onComplete) {
       setTimeout(() => onComplete(), 500);
     }
@@ -270,3 +281,25 @@ function initUploadZone(zoneEl, messageEl, onComplete) {
   zoneEl.addEventListener('click', () => input.click());
   zoneEl.style.cursor = 'pointer';
 }
+
+// DOM-ready initialization
+window.addEventListener('DOMContentLoaded', () => {
+  preventGlobalFileOpen();
+  initSupabaseClient();
+
+  const drop = document.getElementById('adsDropzone');
+  const msgEl = document.getElementById('adsMessage');
+  const listEl = document.getElementById('adsList');
+
+  if (!drop) {
+    console.error('adsDropzone element not found');
+    return;
+  }
+
+  initUploadZone(drop, msgEl, () => {
+    if (window.loadAds) window.loadAds();
+    else renderAdsList(listEl, msgEl);
+  });
+
+  renderAdsList(listEl, msgEl);
+});

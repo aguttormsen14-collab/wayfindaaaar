@@ -106,7 +106,7 @@ body{
   background:rgba(21,81,137,.04);
 }
 
-.upload-zone.dragover{
+.upload-zone.drag-active{
   background:rgba(21,81,137,.12);
   border-color:var(--sx-blue);
 }
