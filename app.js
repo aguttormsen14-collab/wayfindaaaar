@@ -742,13 +742,18 @@ async function listAdsFromSupabase(cfg){
 // buildAds fetches the list of media files from Supabase storage and populates ADS
 async function buildAds(){
   ADS = [];
-  if(!supabaseClient) return;
+  if(!supabaseClient) {
+    console.warn('[ADS] Supabase client not initialized');
+    return;
+  }
   const cfg = window.getSupabaseConfig();
+  const prefix = getAdsPrefix(cfg);
+  console.log('[ADS] prefix:', prefix);
   const list = await listAdsFromSupabase(cfg);
   ADS = list.map(item => ({ src: item.publicUrl, isVideo: item.isVideo, mime: item.mime }));
   console.log('[ADS] found:', ADS.length);
   if(ADS.length === 0){
-    console.warn('[ADS] No files found. Check bucket path:', getAdsPrefix(window.getSupabaseConfig()));
+    console.warn('[ADS] No files found at:', prefix);
   }
 }
 

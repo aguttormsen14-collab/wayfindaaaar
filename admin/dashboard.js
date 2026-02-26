@@ -27,7 +27,7 @@ if (logoutBtn) {
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
   // Initialize Supabase client (from admin-ads.js)
-  initSupabaseClient();
+  await initSupabaseClient();
   
   // Show current install
   const cfg = window.getSupabaseConfig();
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   
   // Initialize ads panel
-  const zoneEl = document.getElementById('uploadZone');
+  const zoneEl = document.getElementById('adsDropzone');
   const msgEl = document.getElementById('adsMessage');
   const listEl = document.getElementById('adsList');
   

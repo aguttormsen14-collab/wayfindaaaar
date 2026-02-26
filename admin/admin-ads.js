@@ -3,15 +3,30 @@
 let supabaseClient = null;
 
 // Initialize Supabase client if configured
-function initSupabaseClient() {
+async function initSupabaseClient() {
   if (typeof window.isSupabaseConfigured !== 'function' || !window.isSupabaseConfigured()) {
-    console.warn('Supabase not configured or helper missing');
+    console.warn('[ADMIN] Supabase not configured or helper missing');
     return null;
   }
   if (window.supabase) {
     const cfg = window.getSupabaseConfig ? window.getSupabaseConfig() : {};
+    console.log('[ADMIN] config:', cfg);
     supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey);
-    console.log('Supabase client initialized');
+    console.log('[ADMIN] Supabase client initialized');
+    
+    // Live test: attempt to list root with limit 1 (non-blocking)
+    try {
+      const { data, error } = await supabaseClient.storage
+        .from(cfg.bucket)
+        .list('', { limit: 1 });
+      if (!error) {
+        console.log('[ADMIN] ✅ Storage connection verified');
+      } else {
+        console.warn('[ADMIN] ⚠️ Storage access failed:', error.message);
+      }
+    } catch (e) {
+      console.warn('[ADMIN] ⚠️ Connection check failed:', e.message);
+    }
   }
   return supabaseClient;
 }
@@ -99,7 +114,7 @@ async function uploadFiles(fileList, onProgress) {
     try {
       const { error } = await client.storage
         .from(bucket)
-        .upload(fullPath, file);
+        .upload(fullPath, file, { upsert: false });
       if (error) {
         console.error('Upload error for', file.name, error);
         if (onProgress) onProgress(`Feil: ${file.name}`);
@@ -283,9 +298,9 @@ function initUploadZone(zoneEl, messageEl, onComplete) {
 }
 
 // DOM-ready initialization
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   preventGlobalFileOpen();
-  initSupabaseClient();
+  await initSupabaseClient();
 
   const drop = document.getElementById('adsDropzone');
   const msgEl = document.getElementById('adsMessage');
