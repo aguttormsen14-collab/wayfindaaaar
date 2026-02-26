@@ -154,31 +154,43 @@ function safeSetBackground(url){
 
   const same = (url === currentBgUrl);
 
-  // start fade out
-  screenEl.classList.add('is-fading');
+  // RESET fade state so transition always triggers
+  screenEl.classList.remove('is-fading');
+  void screenEl.offsetHeight;              // force reflow
+  screenEl.classList.add('is-fading');     // start fade-out
+  void screenEl.offsetHeight;              // force again (stabil på kiosk devices)
 
-  // never get stuck fading (and handles same-image microfade)
-  const timeout = setTimeout(() => {
+  const finish = () => {
     if(token !== bgFadeToken) return;
+
     screenEl.style.backgroundImage = `url("${url}")`;
     currentBgUrl = url;
-    requestAnimationFrame(() => screenEl.classList.remove('is-fading'));
-  }, same ? 60 : 450);
+
+    // dobbel rAF = stabil fade-in på mange Android/Chromium builds
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if(token !== bgFadeToken) return;
+        screenEl.classList.remove('is-fading');
+      });
+    });
+  };
+
+  // Hvis samme bilde: microfade (så det alltid føles likt)
+  if(same){
+    setTimeout(finish, 60);
+    return;
+  }
+
+  // Timeout fallback (cache/edge cases)
+  const t = setTimeout(finish, 450);
 
   const img = new Image();
-  img.onload = () => {
-    if(token !== bgFadeToken) return;
-    clearTimeout(timeout);
-    screenEl.style.backgroundImage = `url("${url}")`;
-    currentBgUrl = url;
-    requestAnimationFrame(() => screenEl.classList.remove('is-fading'));
-  };
+  img.onload = () => { clearTimeout(t); finish(); };
   img.onerror = () => {
-    if(token !== bgFadeToken) return;
-    clearTimeout(timeout);
+    clearTimeout(t);
     console.warn('Background image failed to load:', url);
     if(url !== ASSETS.idle) safeSetBackground(ASSETS.idle);
-    else requestAnimationFrame(() => screenEl.classList.remove('is-fading'));
+    else screenEl.classList.remove('is-fading');
   };
   img.src = url;
 }
