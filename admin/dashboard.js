@@ -75,23 +75,8 @@ async function updateStatusPanel() {
   const cfg = window.getSupabaseConfig();
   const status = isConfigured
     ? `✅ Supabase tilkoblet\nInstallasjon: <strong>${cfg.installSlug}</strong>`
-    : `❌ Supabase ikke konfigurert\nKonfigurer config.local.js`;
+    : `❌ Supabase ikke konfigurert\nKonfigurer config.js`;
   
   statusEl.innerHTML = `<p>${status.split('\n').join('<br>')}</p>`;
 }
-
-      msgEl.textContent = 'Laster opp ' + file.name + '...';
-      const { error } = await supabaseClient.storage.from(BUCKET).upload(path, file, { upsert: true });
-      if(error){
-        console.error('upload error', error);
-        msgEl.textContent = 'Last opp feilet: ' + file.name;
-      } else {
-        msgEl.textContent = 'Lastet opp ' + file.name;
-      }
-    }
-    refreshAdsPanel();
-  });
-}
-
-// (previous initialization covered above; duplicate listener removed)
 
