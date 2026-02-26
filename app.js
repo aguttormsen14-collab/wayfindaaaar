@@ -11,6 +11,21 @@ function getSupabase() {
   return null;
 }
 
+// --- render watchdog ------------------------------------------------
+let lastRenderTs = Date.now();
+function markRendered() { lastRenderTs = Date.now(); }
+// fire guard every 2s, force idle if nothing has rendered in 8s
+setInterval(() => {
+  const elapsed = Date.now() - lastRenderTs;
+  if (elapsed > 8000) {
+    console.warn("[APP] render watchdog triggered → forcing idle");
+    setScreen('idle');
+    showIdleBackground();
+    markRendered();
+  }
+}, 2000);
+
+
 // helper to prefix any local asset paths with the GitHub Pages base path
 function withBase(path) {
   const base = window.SX_BASE_PATH || '/';
@@ -135,9 +150,8 @@ function makeAdsSignature(ads){
 }
 
 
-// supabase client (singleton provided by supabase-config.js)
-// we will use the global `supabase` variable defined above.
-if (supabase && window.isSupabaseConfigured && window.isSupabaseConfigured()) {
+// quick log of Supabase readiness (no caching)
+if (getSupabase() && window.isSupabaseConfigured && window.isSupabaseConfigured()) {
   console.log('[ADS] supabase singleton ready');
 } else {
   console.warn('[ADS] Supabase not configured – ad playback disabled');
@@ -193,6 +207,7 @@ function crossfadeBackground(url){
     bgCurrent = '';
     return;
   }
+  markRendered();
 
   // if same image: do a tiny pulse so it still "feels" responsive
   const same = (url === bgCurrent);
@@ -730,6 +745,7 @@ function getAdsPrefix(cfg){
 
 // list all ad files from Supabase and return metadata array
 async function listAdsFromSupabase(cfg){
+  const supabase = getSupabase();
   if (!supabase) return [];
   const prefix = getAdsPrefix(cfg);
   console.log('[ADS] prefix:', prefix);
@@ -755,51 +771,60 @@ async function listAdsFromSupabase(cfg){
 
 // fetch a fresh list of ads directly from Supabase and optionally start the loop
 async function loadAdsFromSupabase(){
+  const supabase = getSupabase();
   if (!supabase) {
     console.error('[ADS] Supabase client missing');
-    return;
-  }
-  const cfg = window.getSupabaseConfig();
-  const prefix = getAdsPrefix(cfg);
-  const { data, error } = await supabase.storage.from(cfg.bucket || 'saxvik-hub').list(prefix, {
-    limit: 200,
-    offset: 0,
-  });
-  if (error) {
-    console.error('[ADS] list error', error);
-    return;
-  }
-  if (!data || data.length === 0) {
     showIdleBackground();
     return;
   }
-  const files = data
-    .filter(f => {
-      const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
-      return ADS_EXT.includes(ext);
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+  try {
+    const cfg = window.getSupabaseConfig();
+    const prefix = getAdsPrefix(cfg);
+    const { data, error } = await supabase.storage.from(cfg.bucket || 'saxvik-hub').list(prefix, {
+      limit: 200,
+      offset: 0,
+    });
+    if (error) {
+      console.error('[ADS] list error', error);
+      showIdleBackground();
+      return;
+    }
+    if (!data || data.length === 0) {
+      showIdleBackground();
+      return;
+    }
+    const files = data
+      .filter(f => {
+        const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+        return ADS_EXT.includes(ext);
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
 
-  ADS = files.map(f => {
-    const path = `${prefix}/${f.name}`;
-    const url = supabase.storage.from(cfg.bucket || 'saxvik-hub').getPublicUrl(path).data?.publicUrl || '';
-    const lower = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
-    const isVideo = ['.mp4','.webm','.mov'].includes(lower);
-    return { src: url, isVideo, mime: isVideo ? 'video/mp4' : '' };
-  });
+    ADS = files.map(f => {
+      const path = `${prefix}/${f.name}`;
+      const url = supabase.storage.from(cfg.bucket || 'saxvik-hub').getPublicUrl(path).data?.publicUrl || '';
+      const lower = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+      const isVideo = ['.mp4','.webm','.mov'].includes(lower);
+      return { src: url, isVideo, mime: isVideo ? 'video/mp4' : '' };
+    });
 
-  if (ADS.length === 0) {
+    if (ADS.length === 0) {
+      showIdleBackground();
+      return;
+    }
+    // start ads loop with the new set
+    adIndex = 0;
+    showAdByIndex(adIndex);
+  } catch (e) {
+    console.error('[ADS] loadAdsFromSupabase error', e);
     showIdleBackground();
-    return;
   }
-  // start ads loop with the new set
-  adIndex = 0;
-  showAdByIndex(adIndex);
 }
 
 // buildAds fetches the list of media files from Supabase storage and populates ADS
 async function buildAds(){
   ADS = [];
+  const supabase = getSupabase();
   if(!supabase) {
     console.warn('[ADS] Supabase client not initialized');
     return;
@@ -1079,12 +1104,14 @@ function nextAd(){
 function showIdleBackground(){
   stopAds();
   safeSetBackground(ASSETS.idle);
+  markRendered();
 }
 
 // === VIDEO FAILSAFE ===
 function showAdByIndex(i){
   if(!ADS.length) return showIdleBackground();
   const ad = ADS[i];
+  markRendered();
 
   // cleanup any previous video playback state
   cleanupVideoPlayback();
@@ -1180,26 +1207,31 @@ async function startAdsLoop(adsList){
 function init(){
   // ensure admin link visibility follows debug
   updateAdminLink();
-  safeSetBackground(ASSETS.idle);
+
+  // always render idle immediately
+  setScreen('idle');
+  showIdleBackground();
+
+  // hide video element and attach error handler
   videoEl.style.display = 'none';
   videoEl.addEventListener('error', () => { console.warn('video error'); videoEl.style.display='none'; });
-  // initial load and ads
-  (async () => {
-    try{
-      await loadAdsFromSupabase();
-      setScreen('idle');
-      // start polling every 15 seconds
-      const POLL_MS = 15000;
-      if(adsPollTimer) clearInterval(adsPollTimer);
-      adsPollTimer = setInterval(loadAdsFromSupabase, POLL_MS);
-    }catch(e){
-      console.warn('init error', e);
-      // fallback show idle
-      setScreen('idle');
-      showIdleBackground();
-    }
-  })();
+
+  // start when supabase singleton is ready
+  startWhenSupabaseReady();
+
   resetIdleTimer();
+}
+
+function startWhenSupabaseReady(){
+  if (!getSupabase()){
+    console.log('[APP] waiting for supabase...');
+    requestAnimationFrame(startWhenSupabaseReady);
+    return;
+  }
+  console.log('[APP] supabase ready → starting ads polling');
+  loadAdsFromSupabase();
+  if (adsPollTimer) clearInterval(adsPollTimer);
+  adsPollTimer = setInterval(loadAdsFromSupabase, 15000);
 }
 
 // Expose API for debugging
