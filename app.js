@@ -663,6 +663,38 @@ function closeStorePopup(){
   const body = document.getElementById('storeBody'); if(body) body.innerHTML='';
 }
 
+// === popup for stores ===
+function openStorePopup(storeId){
+
+  const modal = document.getElementById('storeModal');
+  const body = document.getElementById('storeBody');
+
+  if(!modal || !body) return;
+
+  const imgUrl = `${STORES_ASSETS}/${storeId}/popup.png`;
+
+  body.innerHTML = `
+    <img src="${imgUrl}"
+         style="
+           width:100%;
+           height:auto;
+           border-radius:12px;
+           display:block;
+         ">
+  `;
+
+  modal.classList.remove('hidden');
+
+  // close button
+  const closeBtn = document.getElementById('storeClose');
+  closeBtn.onclick = closeStorePopup;
+
+  // click outside
+  modal.onclick = (e)=>{
+    if(e.target === modal) closeStorePopup();
+  };
+}
+
 // === PLAYLIST POLLING ===
 function makePlaylistSignature(){
   try{
