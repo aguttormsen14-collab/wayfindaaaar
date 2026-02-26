@@ -78,3 +78,35 @@ body{
     grid-column:span 12;
   }
 }
+
+/* upload zone and ads list */
+.upload-zone{
+  border: 2px dashed var(--sx-border);
+  padding: 20px;
+  text-align: center;
+  color: var(--sx-muted);
+  border-radius: var(--sx-radius);
+}
+.upload-zone.dragover{
+  background: rgba(21,81,137,.05);
+}
+#adsList{
+  list-style:none;
+  padding:0;
+  margin-top:12px;
+}
+#adsList li{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:4px 0;
+  border-bottom:1px solid var(--sx-border);
+  font-size:13px;
+}
+#adsList li button{
+  background:none;
+  border:none;
+  color:var(--sx-blue);
+  cursor:pointer;
+  font-size:12px;
+}

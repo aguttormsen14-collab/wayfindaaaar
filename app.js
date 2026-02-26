@@ -26,12 +26,11 @@ const ASSETS = {
   tech_map1: `${SCREEN_ASSETS}/tech_map1.png`,
 };
 
-const PLAYLIST_URL = `${ADS_ASSETS}/playlist.json`;
 
-// === PLAYLIST POLLING ===
-const PLAYLIST_POLL_MS = 2 * 60 * 1000; // 2 minutes
-let lastPlaylistSig = "";
-let playlistPollTimer = null;
+// === ADS POLLING ===
+const PLAYLIST_POLL_MS = 2 * 60 * 1000; // 2 minutes (reuse variable name)
+let lastAdsSig = "";
+let adsPollTimer = null;
 
 // SCREENS Configuration with hotspots and pulses (normalized coordinates 0..1)
 const SCREENS = {
@@ -103,11 +102,17 @@ const SCREENS = {
   }
 };
 
-let SLOT_NAMES = ["slot1","slot2","slot3"];
-// === VIDEO PRIORITY & EXTENSIONS ===
-// prefer webm then mp4, then image types
-let TRY_EXT = [".webm",".mp4",".jpg",".jpeg",".png",".gif"];
+// allowed file extensions for ads (storage listing)
+const ADS_EXT = ['.jpg','.jpeg','.png','.webp','.mp4'];
 let AD_DURATION_MS = 8000;
+
+// supabase client (optional, configured via globals)
+let supabaseClient = null;
+if(window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY){
+  supabaseClient = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+} else {
+  console.warn('Supabase not configured – ad playback disabled');
+}
 
 const IDLE_TIMEOUT_MS = 30000;
 
@@ -676,26 +681,42 @@ function closeStorePopup(){
   const body = document.getElementById('storeBody'); if(body) body.innerHTML='';
 }
 
-// === PLAYLIST POLLING ===
+// === ADS POLLING ===
 function makePlaylistSignature(){
   try{
-    return JSON.stringify({ duration: AD_DURATION_MS, slots: SLOT_NAMES, exts: TRY_EXT, ads: ADS });
+    return JSON.stringify({ duration: AD_DURATION_MS, ads: ADS.map(a=>a.src) });
   }catch(e){ return ''+Date.now(); }
 }
 
-async function buildAdsListFromSlots(){
-  // wrapper around buildAds()
-  await buildAds();
+// buildAds fetches the list of media files from Supabase storage and populates ADS
+async function buildAds(){
+  ADS = [];
+  if(!supabaseClient) return;
+  const prefix = `installs/${INSTALL_ID}/assets/ads/`;
+  const { data, error } = await supabaseClient.storage.from('saxvik-hub').list(prefix, { limit: 200, offset: 0 });
+  if(error){ console.warn('ads list error', error); return; }
+  const files = data
+        .filter(f => {
+           const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+           return ADS_EXT.includes(ext);
+        })
+        .sort((a,b)=>a.name.localeCompare(b.name));
+  files.forEach(f=>{
+     const path = prefix + f.name;
+     const url = supabaseClient.storage.from('saxvik-hub').getPublicUrl(path).publicURL;
+     const lower = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+     const isVideo = ['.mp4','.webm','.mov'].includes(lower);
+     ADS.push({ src: url, isVideo, mime: isVideo ? 'video/mp4' : '' });
+  });
 }
 
-async function pollPlaylistAndReloadAdsIfChanged(){
+async function pollAdsAndReloadIfChanged(){
   try{
-    await loadPlaylist();
-    await buildAdsListFromSlots();
+    await buildAds();
     const sig = makePlaylistSignature();
-    if(sig !== lastPlaylistSig){
-      console.log('Playlist changed');
-      lastPlaylistSig = sig;
+    if(sig !== lastAdsSig){
+      console.log('Ads list changed');
+      lastAdsSig = sig;
       if(currentScreen === 'idle'){
         stopAds();
         startAdsLoop();
@@ -762,7 +783,7 @@ function openAdminPanel(){
     const btnReload = document.createElement('button');
     btnReload.textContent = 'Reload Campaign';
     btnReload.style.width = '100%'; btnReload.style.marginBottom = '8px';
-    btnReload.addEventListener('click', ()=>{ pollPlaylistAndReloadAdsIfChanged(); updateAdminStatus(); });
+    btnReload.addEventListener('click', ()=>{ pollAdsAndReloadIfChanged(); updateAdminStatus(); });
     adminPanel.appendChild(btnReload);
 
     // Status
@@ -901,19 +922,6 @@ document.addEventListener('keyup', (e) => {
 }, {passive:true});
 
 // Playlist helpers
-async function loadPlaylist(){
-  try{
-    const r = await fetch(PLAYLIST_URL, {cache: 'no-store'});
-
-    if(!r.ok) throw new Error('no playlist');
-    const d = await r.json();
-    SLOT_NAMES = d.slots || SLOT_NAMES;
-    TRY_EXT = d.tryExt || TRY_EXT;
-    AD_DURATION_MS = d.durationMs || AD_DURATION_MS;
-  }catch(e){
-    console.warn('Failed to load playlist.json, using defaults', e);
-  }
-}
 
 async function urlExists(url){
   try{
@@ -927,34 +935,6 @@ async function urlExists(url){
   }
 }
 
-async function resolveSlot(slot){
-  for(const ext of TRY_EXT){
-    const url = `${ADS_ASSETS}/${slot}${ext}`;
-    try{
-      const ok = await urlExists(url);
-      if(ok){
-        const lower = ext.toLowerCase();
-        const isVideo = ['.mp4','.webm','.mov'].includes(lower);
-        // map extension to mime
-        let mime = '';
-        if(lower === '.mp4') mime = 'video/mp4';
-        else if(lower === '.webm') mime = 'video/webm';
-        else if(lower === '.mov') mime = 'video/quicktime';
-        // return rich ad descriptor
-        return { src: url, isVideo, mime };
-      }
-    }catch(e){ /* ignore */ }
-  }
-  return null;
-}
-
-async function buildAds(){
-  ADS = [];
-  for(const s of SLOT_NAMES){
-    const r = await resolveSlot(s);
-    if(r) ADS.push(r);
-  }
-}
 
 function stopAds(){
   if(adTimer) { clearTimeout(adTimer); adTimer = null; }
@@ -1080,7 +1060,6 @@ function showAdByIndex(i){
 async function startAdsLoop(){
   stopAds();
   safeSetBackground(ASSETS.idle);
-  await loadPlaylist();
   await buildAds();
   if(!ADS.length) return showIdleBackground();
   adIndex = 0;
@@ -1096,14 +1075,13 @@ function init(){
   // initial load and ads
   (async () => {
     try{
-      await loadPlaylist();
-      await buildAdsListFromSlots();
-      lastPlaylistSig = makePlaylistSignature();
+      await buildAds();
+      lastAdsSig = makePlaylistSignature();
       setScreen('idle');
       startAdsLoop();
-      // start playlist polling
-      if(playlistPollTimer) clearInterval(playlistPollTimer);
-      playlistPollTimer = setInterval(pollPlaylistAndReloadAdsIfChanged, PLAYLIST_POLL_MS);
+      // start ads polling
+      if(adsPollTimer) clearInterval(adsPollTimer);
+      adsPollTimer = setInterval(pollAdsAndReloadIfChanged, PLAYLIST_POLL_MS);
     }catch(e){
       console.warn('init error', e);
       // fallback

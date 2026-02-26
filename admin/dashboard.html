@@ -30,7 +30,11 @@
 
       <div class="panel col-6">
         <h2>Reklame</h2>
-        <p>Last opp media (kommer snart)</p>
+        <div id="adsPanel">
+          <div id="uploadZone" class="upload-zone">Dra media hit for å laste opp</div>
+          <ul id="adsList"></ul>
+          <p id="adsMessage" class="helper"></p>
+        </div>
       </div>
 
       <div class="panel col-12">
@@ -42,6 +46,9 @@
 
   </div>
 
+  <!-- supabase client for upload/listing -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/supabase.min.js"></script>
+  <script src="../supabase-config.js"></script>
   <script src="dashboard.js"></script>
 </body>
 </html>
