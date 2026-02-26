@@ -568,16 +568,18 @@ safeSetBackground(config.bg);
       ev.stopPropagation();
       ev.preventDefault();
       
-      // Handle navigation/popup FIRST, then reset timers
+      // ALWAYS reset idle timer on hotspot click
+      resetIdleTimer();
+      
+      // Handle navigation/popup FIRST
       if (h.go) {
         setScreen(h.go);
-        resetIdleTimer();
-        // resetAdsCountdown will be called by setScreen if going to idle
-        // otherwise we just stopped the timer when leaving idle
+        // If going to idle, setScreen will start ads timer
+        // If leaving idle, setScreen will stop ads timer
       } else if (h.storeId) {
         openStorePopup(h.storeId);
-        resetIdleTimer();
-        resetAdsCountdown('store-popup');
+        // Stop ads timer while viewing popup
+        stopIdleToAdsTimer();
       }
     });
 
@@ -1464,38 +1466,37 @@ function init(){
     e.preventDefault();
     e.stopPropagation();
     
-    // Return to idle (setScreen will handle resetAdsCountdown)
+    // Stop ads and return to idle
+    stopAdsNow();
     clearMapArtifacts();
     setScreen('idle');
     showIdleBackground();
+    // setScreen will start fresh ads timer
   });
 
-  // CAPTURE PHASE listener - runs BEFORE all other handlers
-  // This ensures BOTH timers are reset on ANY tap, even if hotspots stopPropagation
-  document.addEventListener('pointerdown', (ev) => {
-    // Always reset idle timer (30s before return to idle from other screens)
-    resetIdleTimer();
-    
-    // If on idle screen, reset ads countdown
-    if (currentScreen === 'idle' && !adsRunning) {
-      stopIdleToAdsTimer(); // Stop current timer
-      scheduleAdsAfterIdle(); // Start fresh 10s countdown
-    }
-  }, { capture: true }); // CAPTURE = runs before hotspots
-
-  // global tap handler - SINGLE SOURCE OF TRUTH for ads reset
+  // global tap handler for non-hotspot taps (reaches when no stopPropagation)
   document.addEventListener('pointerdown', (ev) => {
     recordTouch();
+    
+    // Reset idle timer on any tap that reaches here
+    resetIdleTimer();
     
     // if ads are running: return to idle
     if (adsRunning || isAdsScreen(currentScreen)) {
       ev.preventDefault();
       ev.stopPropagation();
+      stopAdsNow();
       clearMapArtifacts();
       setScreen('idle');
       showIdleBackground();
-      // resetAdsCountdown will be called by setScreen when entering idle
       return;
+    }
+    
+    // If on idle screen and tap reaches here (no hotspot consumed it):
+    // Reset the ads countdown
+    if (currentScreen === 'idle') {
+      stopIdleToAdsTimer();
+      scheduleAdsAfterIdle();
     }
   });
 
