@@ -6,11 +6,42 @@
   <title>Admin Dashboard</title>
   <link rel="stylesheet" href="dashboard.css">
 </head>
-<body>
-  <div class="dashboard-container">
-    <h1>Admin Dashboard</h1>
-    <button id="logoutBtn">Logg ut</button>
+<body data-theme="saxvik-clean">
+
+  <div class="shell">
+
+    <div class="topbar">
+      <div class="title">
+        <h1>Saxvik Admin</h1>
+        <p>Infoskjerm kontrollpanel</p>
+      </div>
+
+      <button id="logoutBtn" class="btn-secondary">
+        Logg ut
+      </button>
+    </div>
+
+    <div class="grid">
+
+      <div class="panel col-6">
+        <h2>Installasjoner</h2>
+        <p>Velg kunde/installasjon (kommer snart)</p>
+      </div>
+
+      <div class="panel col-6">
+        <h2>Reklame</h2>
+        <p>Last opp media (kommer snart)</p>
+      </div>
+
+      <div class="panel col-12">
+        <h2>Status</h2>
+        <p>Systemstatus og info vises her</p>
+      </div>
+
+    </div>
+
   </div>
+
   <script src="dashboard.js"></script>
 </body>
 </html>

@@ -1,19 +1,80 @@
-/* simple admin dashboard page */
-html, body {
-  height: 100%;
-  margin: 0;
-  font-family: sans-serif;
-  background: #282;
-  color: #111;
+/* Hent Saxvik designsystem */
+@import url("./login.css");
+
+/* ===== DASHBOARD LAYOUT ===== */
+
+body{
+  margin:0;
 }
 
-dashboard-container {
-  max-width: 480px;
-  margin: 0 auto;
-  padding: 40px 20px;
-  text-align: center;
+/* hoved container */
+.shell{
+  max-width:1100px;
+  margin:30px auto;
+  padding:0 16px;
 }
 
-dashboard-container h1 {
-  margin-bottom: 24px;
+/* toppbar */
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+}
+
+.title h1{
+  margin:0;
+  font-size:20px;
+}
+
+.title p{
+  margin:4px 0 0;
+  color:var(--sx-muted);
+  font-size:13px;
+}
+
+/* panelkort */
+.panel{
+  background:var(--sx-card);
+  border:1px solid var(--sx-border);
+  border-radius:var(--sx-radius);
+  padding:18px;
+  box-shadow:var(--sx-shadow);
+  margin-bottom:16px;
+}
+
+/* grid layout */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(12,1fr);
+  gap:16px;
+}
+
+.col-6{
+  grid-column:span 6;
+}
+
+.col-12{
+  grid-column:span 12;
+}
+
+/* knapper */
+.btn-secondary{
+  padding:10px 14px;
+  border-radius:12px;
+  border:1px solid var(--sx-border);
+  background:white;
+  cursor:pointer;
+  font-weight:600;
+}
+
+.btn-secondary:hover{
+  border-color:var(--sx-blue);
+}
+
+/* mobil */
+@media(max-width:900px){
+  .col-6{
+    grid-column:span 12;
+  }
 }
