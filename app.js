@@ -87,7 +87,7 @@ const SCREENS = {
   map2: {
     bg: ASSETS.map2,
     hotspots: [
-      { id:"back_to_menu", x:0.263, y:0.69, w:0.242, h:0.084, go:"menu" },
+      { id:"back_to_menu", x:0.263, y:0.63, w:0.242, h:0.084, go:"menu" },
       { id:"to_map3", x:0.92, y:0.20, w:0.07, h:0.06, go:"map3" }
     ],
     pulses: []
