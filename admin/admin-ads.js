@@ -187,9 +187,21 @@ async function deleteAdAndRefresh(path) {
   }
 }
 
+// prevent browser opening files globally
+function preventGlobalFileOpen() {
+  ['dragenter','dragover','dragleave','drop'].forEach(evt => {
+    window.addEventListener(evt, e => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, {passive:false});
+  });
+}
+
 // Initialize upload zone
 function initUploadZone(zoneEl, messageEl, onComplete) {
   if (!zoneEl) return;
+
+  preventGlobalFileOpen();
   
   if (!supabaseClient) {
     zoneEl.textContent = '❌ Supabase ikke konfigurert';
@@ -199,15 +211,19 @@ function initUploadZone(zoneEl, messageEl, onComplete) {
   
   zoneEl.addEventListener('dragover', e => {
     e.preventDefault();
+    e.stopPropagation();
     zoneEl.classList.add('dragover');
   });
   
-  zoneEl.addEventListener('dragleave', () => {
+  zoneEl.addEventListener('dragleave', e => {
+    e.preventDefault();
+    e.stopPropagation();
     zoneEl.classList.remove('dragover');
   });
   
   zoneEl.addEventListener('drop', async e => {
     e.preventDefault();
+    e.stopPropagation();
     zoneEl.classList.remove('dragover');
     
     const files = Array.from(e.dataTransfer.files);
