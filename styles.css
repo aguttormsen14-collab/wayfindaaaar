@@ -258,8 +258,6 @@ html, body {
 }
 .ads-tap.hidden { display: none; }
 
-}
-
 /* admin shortcut link, visible only in debug mode */
 #adminLink {
   position: fixed;

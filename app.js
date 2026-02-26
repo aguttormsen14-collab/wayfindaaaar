@@ -74,9 +74,33 @@ function scheduleAdsAfterIdle() {
 
 function stopAdsNow() {
   if (!adsRunning) return;
+  
+  // Stop all ads and cleanup
   try { if (typeof stopAds === "function") stopAds(); } catch(e) {}
   try { if (typeof hideAdsOverlay === "function") hideAdsOverlay(); } catch(e) {}
+  
+  // Ensure artifacts are cleared
+  clearMapArtifacts();
+  
+  // Reset state
   adsRunning = false;
+}
+
+// SINGLE SOURCE OF TRUTH for ads countdown reset
+function resetAdsCountdown(reason) {
+  // Always stop any running ads timer
+  stopIdleToAdsTimer();
+  
+  // If ads are currently running, stop them
+  if (adsRunning) {
+    stopAdsNow();
+  }
+  
+  // Only schedule new ads if we're on idle screen
+  // This prevents ads from popping up while user navigates
+  if (currentScreen === 'idle') {
+    scheduleAdsAfterIdle();
+  }
 }
 
 function isAdsScreen(id) {
@@ -502,12 +526,15 @@ function setScreen(screenName) {
   const config = SCREENS[screenName];
 
   // when leaving idle, stop the auto-start timer
-  if (currentScreen !== 'idle' && currentScreen !== 'ads' && !isAdsScreen(currentScreen)) {
+  const wasIdle = currentScreen === 'idle';
+  const goingToIdle = screenName === 'idle';
+  
+  if (wasIdle && !goingToIdle) {
     stopIdleToAdsTimer();
   }
 
   // record when we entered idle
-  if (screenName === 'idle') {
+  if (goingToIdle) {
     lastIdleTs = Date.now();
   }
 
@@ -562,7 +589,7 @@ safeSetBackground(config.bg);
 
   // if we just moved to idle screen, schedule auto-start of ads
   if(screenName === 'idle'){
-    scheduleAdsAfterIdle();
+    resetAdsCountdown('enter-idle');
   }
 
   // update hint visibility after screen change
@@ -1415,57 +1442,32 @@ function init(){
   document.body.appendChild(catcher);
   catcher.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-
-    // stop any idle->ads timer if present
-    if (typeof stopIdleToAdsTimer === "function") stopIdleToAdsTimer();
-
-    // stop ads immediately
-    if (typeof stopAdsIfRunning === "function") stopAdsIfRunning();
-    try { if (typeof stopAds === "function") stopAds(); } catch(_) {}
-
-    // hide ads overlay if used
-    if (typeof hideAdsOverlay === "function") hideAdsOverlay();
-
-    // cleanup map artifacts to avoid pulse ghosts behind overlays
-    if (typeof clearMapArtifacts === "function") clearMapArtifacts();
-
-    // go straight back to idle screen (no modal)
+    
+    // Cleanup and return to idle
+    clearMapArtifacts();
     setScreen('idle');
     showIdleBackground();
-    scheduleAdsAfterIdle();
+    // resetAdsCountdown will be called by setScreen when entering idle
   });
 
-  // global tap handler (records touch, handles passive screens)
+  // global tap handler - SINGLE SOURCE OF TRUTH for ads reset
   document.addEventListener('pointerdown', (ev) => {
     recordTouch();
-    // if ads are running/visible: return to idle + restart idle timer
+    
+    // if ads are running: return to idle
     if (adsRunning || isAdsScreen(currentScreen)) {
       ev.preventDefault();
       ev.stopPropagation();
-      stopIdleToAdsTimer();
-      stopAdsNow();
       clearMapArtifacts();
-      // return to idle welcome screen
       setScreen('idle');
       showIdleBackground();
-      scheduleAdsAfterIdle();
+      // resetAdsCountdown will be called by setScreen when entering idle
       return;
     }
-    // if already on idle, reset the timer so user has time before ads start
-    if (currentScreen === 'idle') {
-      stopIdleToAdsTimer();
-      scheduleAdsAfterIdle();
-      return;
-    }
-    // handle other passive screens
-    if (isPassiveScreen(currentScreen)) {
-      // prevent hotspots / other behavior
-      ev.preventDefault();
-      ev.stopPropagation();
-      // just reset idle timer; no modal
-      stopIdleToAdsTimer();
-      scheduleAdsAfterIdle();
-    }
+    
+    // Always reset ads countdown on any tap
+    // This prevents ads from starting while user is navigating
+    resetAdsCountdown('pointerdown');
   });
 
   // always render idle immediately
