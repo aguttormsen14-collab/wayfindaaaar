@@ -128,11 +128,28 @@ async function uploadFiles(fileList, onProgress) {
   const bucket = cfg.bucket;
   const uploaded = [];
 
+  const supportedExt = ['.jpg', '.jpeg', '.png', '.webp', '.mp4'];
+
   for (const file of fileList) {
     const dot = file.name.lastIndexOf('.');
-    const ext = dot >= 0 ? file.name.slice(dot).toLowerCase() : '';
-    if (!['.jpg', '.jpeg', '.png', '.webp', '.mp4'].includes(ext)) {
-      console.warn('[ADMIN] Skipping unsupported file:', file.name);
+    let ext = dot >= 0 ? file.name.slice(dot).toLowerCase() : '';
+
+    // If no extension: allow only image/png -> treat as .png
+    if (!ext) {
+      if (file.type === 'image/png') {
+        ext = '.png';
+      } else {
+        const msg = 'Unsupported file type';
+        console.warn('[ADMIN] Unsupported file type (no extension):', { name: file.name, type: file.type });
+        if (onProgress) onProgress(msg);
+        continue;
+      }
+    }
+
+    if (!supportedExt.includes(ext)) {
+      const msg = 'Unsupported file type';
+      console.warn('[ADMIN] Skipping unsupported file:', { name: file.name, type: file.type, ext });
+      if (onProgress) onProgress(msg);
       continue;
     }
 
@@ -150,12 +167,19 @@ async function uploadFiles(fileList, onProgress) {
       const { error } = await client.storage.from(bucket).upload(fullPath, file, { upsert: false });
       if (error) {
         console.error('[ADMIN] Upload error for', file.name, error);
-        if (onProgress) onProgress(`Feil: ${file.name}`);
+        const status = error.statusCode ?? error.status ?? '';
+        const statusTxt = status !== '' ? ` (status: ${status})` : '';
+        const msg = `Upload failed: ${error.message || 'Unknown error'}${statusTxt}`;
+        if (onProgress) onProgress(msg);
         continue;
       }
       uploaded.push(filename);
     } catch (e) {
       console.error('[ADMIN] Upload exception for', file.name, e);
+      const status = e?.statusCode ?? e?.status ?? '';
+      const statusTxt = status !== '' ? ` (status: ${status})` : '';
+      const msg = `Upload failed: ${e?.message || 'Unknown error'}${statusTxt}`;
+      if (onProgress) onProgress(msg);
     }
   }
 
