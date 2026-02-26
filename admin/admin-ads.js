@@ -1,4 +1,4 @@
-// admin-ads.js — Supabase ads management for admin dashboard (clean + stable)
+// admin/admin-ads.js — Supabase ads management (library only, no auto-init)
 
 let supabaseClient = null;
 
@@ -24,13 +24,11 @@ function getCfg() {
 
 /** Supabase client init */
 async function initSupabaseClient() {
-  // Helpers missing or not configured
   if (typeof window.isSupabaseConfigured !== 'function' || !window.isSupabaseConfigured()) {
     console.warn('[ADMIN] Supabase not configured or helper missing');
     return null;
   }
 
-  // Supabase CDN not loaded
   if (!window.supabase || typeof window.supabase.createClient !== 'function') {
     console.warn('[ADMIN] supabase-js CDN not loaded (window.supabase missing)');
     return null;
@@ -46,7 +44,7 @@ async function initSupabaseClient() {
   console.log('[ADMIN] Supabase client initialized');
   console.log('[ADMIN] config:', { url: cfg.url, bucket: cfg.bucket, installSlug: cfg.installSlug });
 
-  // Non-blocking storage check (helps debugging)
+  // Non-blocking storage check
   try {
     const { error } = await supabaseClient.storage.from(cfg.bucket).list('', { limit: 1 });
     if (error) console.warn('[ADMIN] ⚠️ Storage access failed:', error.message);
@@ -64,10 +62,9 @@ function buildAdsPrefix() {
   return `installs/${cfg.installSlug}/assets/ads`;
 }
 
-/** Helper: public URL from storage (handles supabase-js differences) */
+/** Helper: public URL from storage */
 function getPublicUrl(bucket, fullPath) {
   const res = supabaseClient.storage.from(bucket).getPublicUrl(fullPath);
-  // supabase-js may return { data: { publicUrl } } or { publicURL }
   return res?.data?.publicUrl || res?.publicURL || res?.publicUrl || '';
 }
 
@@ -90,7 +87,9 @@ async function loadAds() {
 
     const files = (data || [])
       .filter((f) => {
-        const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+        const dot = f.name.lastIndexOf('.');
+        if (dot < 0) return false;
+        const ext = f.name.slice(dot).toLowerCase();
         return ['.jpg', '.jpeg', '.png', '.webp', '.mp4'].includes(ext);
       })
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -115,7 +114,7 @@ async function loadAds() {
 /** Upload files to storage */
 async function uploadFiles(fileList, onProgress) {
   if (typeof window.isSupabaseConfigured !== 'function' || !window.isSupabaseConfigured()) {
-    alert('Supabase ikke konfigurert – fyll inn config.local.js');
+    alert('Supabase ikke konfigurert – fyll inn config.js');
     return [];
   }
   if (!window.supabase?.createClient) {
@@ -125,12 +124,13 @@ async function uploadFiles(fileList, onProgress) {
 
   const cfg = getCfg();
   const client = window.supabase.createClient(cfg.url, cfg.anonKey);
-  const prefix = buildAdsPrefix(); // no trailing slash
+  const prefix = buildAdsPrefix();
   const bucket = cfg.bucket;
   const uploaded = [];
 
   for (const file of fileList) {
-    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    const dot = file.name.lastIndexOf('.');
+    const ext = dot >= 0 ? file.name.slice(dot).toLowerCase() : '';
     if (!['.jpg', '.jpeg', '.png', '.webp', '.mp4'].includes(ext)) {
       console.warn('[ADMIN] Skipping unsupported file:', file.name);
       continue;
@@ -241,6 +241,8 @@ async function deleteAdAndRefresh(path) {
 function initUploadZone(zoneEl, messageEl, onComplete) {
   if (!zoneEl) return;
 
+  preventGlobalFileOpen();
+
   if (!supabaseClient) {
     zoneEl.textContent = '❌ Supabase ikke konfigurert';
     zoneEl.style.color = '#dc2626';
@@ -298,24 +300,3 @@ function initUploadZone(zoneEl, messageEl, onComplete) {
   zoneEl.addEventListener('click', () => input.click());
   zoneEl.style.cursor = 'pointer';
 }
-
-/** DOM-ready initialization (admin page) */
-window.addEventListener('DOMContentLoaded', async () => {
-  preventGlobalFileOpen();
-  await initSupabaseClient();
-
-  const drop = document.getElementById('adsDropzone');
-  const msgEl = document.getElementById('adsMessage');
-  const listEl = document.getElementById('adsList');
-
-  if (!drop) {
-    console.error('[ADMIN] adsDropzone element not found');
-    return;
-  }
-
-  initUploadZone(drop, msgEl, () => {
-    renderAdsList(listEl, msgEl);
-  });
-
-  renderAdsList(listEl, msgEl);
-});

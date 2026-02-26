@@ -1,46 +1,51 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="no">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard</title>
-  <link rel="stylesheet" href="dashboard.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Saxvik Admin</title>
+  <link rel="stylesheet" href="dashboard.css?v=99" />
 </head>
+
 <body data-theme="saxvik-clean">
-
   <div class="shell">
-
     <div class="topbar">
       <div class="title">
-        <img src="../assets/brand/saxvik-hub-logo.png?v=1" alt="Saxvik Hub" class="logo" onerror="console.error('Logo ikke funnet:', this.src);" />
+        <img
+          src="../assets/brand/saxvik-hub-logo.png?v=99"
+          alt="Saxvik Hub"
+          class="logo"
+          onerror="console.error('Logo ikke funnet:', this.src);"
+        />
         <div class="title-text">
           <h1>Saxvik Admin</h1>
           <p>Infoskjerm kontrollpanel</p>
         </div>
       </div>
 
-      <button id="logoutBtn" class="btn-secondary">
-        Logg ut
-      </button>
+      <button id="logoutBtn" class="btn-secondary">Logg ut</button>
     </div>
 
     <div class="grid">
-
       <div class="panel col-6">
         <h2>Installasjoner</h2>
-        <p>Velg kunde/installasjon: <strong id="currentInstall">amfi-steinkjer</strong></p>
+        <p>Valgt installasjon: <strong id="currentInstall">amfi-steinkjer</strong></p>
       </div>
 
       <div class="panel col-6">
         <h2>Reklame</h2>
+
         <div id="adsPanel">
           <div id="adsDropzone" class="upload-zone">
             📤 Dra og slipp bilder/video her
-            <br><small style="opacity: 0.7;">(jpg, png, webp, mp4)</small>
+            <br />
+            <small style="opacity: 0.7;">(jpg, jpeg, png, webp, mp4)</small>
           </div>
+
           <div class="ads-actions">
             <button class="ads-btn-refresh" onclick="refreshAdsPanel()">🔄 Refresh</button>
           </div>
+
           <div id="adsList" class="ads-list"></div>
           <p id="adsMessage" class="helper"></p>
         </div>
@@ -52,19 +57,16 @@
           <p>Laster statusinfo…</p>
         </div>
       </div>
-
     </div>
-
   </div>
 
-  <!-- configuration (GitHub Pages uses config.js) -->
-  <script src="../config.js?v=1"></script>
-  <!-- supabase client library (must load before supabase-config) -->
+  <!-- IMPORTANT: scripts must be at end of body and in this order -->
+  <script src="../config.js?v=99"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/supabase.min.js"></script>
-  <script src="../supabase-config.js?v=1"></script>
-  <!-- ads management (depends on supabase-config) -->
-  <script src="./admin-ads.js?v=1"></script>
-  <!-- dashboard app -->
-  <script src="./dashboard.js?v=1"></script>
+  <script src="../supabase-config.js?v=99"></script>
+
+  <!-- Admin logic (library + bootstrap) -->
+  <script src="./admin-ads.js?v=99"></script>
+  <script src="./dashboard.js?v=99"></script>
 </body>
 </html>

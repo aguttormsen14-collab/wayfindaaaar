@@ -1,21 +1,18 @@
-// Admin Dashboard App
+// admin/dashboard.js — stable admin bootstrap
 
-// Check auth first
 function checkAuth() {
   const raw = localStorage.getItem('sx_auth');
   try {
     const obj = JSON.parse(raw);
     if (!obj || !obj.ok) throw new Error('bad');
-    return;
   } catch (e) {
     console.log('no valid auth, redirecting');
     location.href = './login.html';
   }
 }
-
 checkAuth();
 
-// Logout button
+// Logout
 const logoutBtn = document.getElementById('logoutBtn');
 if (logoutBtn) {
   logoutBtn.addEventListener('click', () => {
@@ -24,59 +21,74 @@ if (logoutBtn) {
   });
 }
 
-// Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
-  // Initialize Supabase client (from admin-ads.js)
-  await initSupabaseClient();
-  
-  // Show current install
-  const cfg = window.getSupabaseConfig();
-  const installEl = document.getElementById('currentInstall');
-  if (installEl) {
-    installEl.textContent = cfg.installSlug;
-  }
-  
-  // Initialize ads panel
   const zoneEl = document.getElementById('adsDropzone');
   const msgEl = document.getElementById('adsMessage');
   const listEl = document.getElementById('adsList');
-  
-  if (!window.isSupabaseConfigured()) {
+  const installEl = document.getElementById('currentInstall');
+
+  // Quick boot logs (helps spot cache/404 immediately)
+  console.log('[ADMIN] has config:', !!window.SUPABASE_URL, !!window.SUPABASE_ANON_KEY);
+  console.log('[ADMIN] has helpers:', typeof window.getSupabaseConfig, typeof window.isSupabaseConfigured);
+  console.log('[ADMIN] has supabase lib:', !!window.supabase);
+  console.log('[ADMIN] has admin functions:', typeof initSupabaseClient, typeof initUploadZone, typeof renderAdsList);
+
+  // If helpers missing -> supabase-config.js not loaded (likely 404/cache)
+  if (typeof window.getSupabaseConfig !== 'function' || typeof window.isSupabaseConfigured !== 'function') {
     if (zoneEl) {
-      zoneEl.textContent = '❌ Supabase ikke konfigurert';
+      zoneEl.textContent = '❌ Mangler supabase-config.js (helpers)';
       zoneEl.style.color = '#dc2626';
     }
-  } else {
-    initUploadZone(zoneEl, msgEl, () => {
-      renderAdsList(listEl, msgEl);
-    });
+    updateStatusPanel();
+    return;
+  }
+
+  // Show install slug
+  const cfg = window.getSupabaseConfig();
+  if (installEl) installEl.textContent = cfg.installSlug || 'ukjent';
+
+  // Init client (from admin-ads.js)
+  const client = (typeof initSupabaseClient === 'function') ? await initSupabaseClient() : null;
+
+  if (!client) {
+    if (zoneEl) {
+      zoneEl.textContent = '❌ Supabase ikke konfigurert / ikke tilkoblet';
+      zoneEl.style.color = '#dc2626';
+    }
+    updateStatusPanel();
+    return;
+  }
+
+  // Init upload + list
+  if (typeof initUploadZone === 'function') {
+    initUploadZone(zoneEl, msgEl, () => renderAdsList(listEl, msgEl));
+  }
+  if (typeof renderAdsList === 'function') {
     renderAdsList(listEl, msgEl);
   }
-  
-  // Initialize status panel
+
   updateStatusPanel();
 });
 
-// Refresh ads list
+// Called by Refresh button
 async function refreshAdsPanel() {
   const listEl = document.getElementById('adsList');
   const msgEl = document.getElementById('adsMessage');
   if (msgEl) msgEl.textContent = 'Oppdaterer…';
-  await renderAdsList(listEl, msgEl);
+  if (typeof renderAdsList === 'function') await renderAdsList(listEl, msgEl);
   if (msgEl) msgEl.textContent = '';
 }
 
-// Update status panel
 async function updateStatusPanel() {
   const statusEl = document.getElementById('statusContent');
   if (!statusEl) return;
-  
-  const isConfigured = window.isSupabaseConfigured();
-  const cfg = window.getSupabaseConfig();
-  const status = isConfigured
-    ? `✅ Supabase tilkoblet\nInstallasjon: <strong>${cfg.installSlug}</strong>`
-    : `❌ Supabase ikke konfigurert\nKonfigurer config.js`;
-  
-  statusEl.innerHTML = `<p>${status.split('\n').join('<br>')}</p>`;
-}
 
+  const configured = (typeof window.isSupabaseConfigured === 'function') && window.isSupabaseConfigured();
+  const cfg = (typeof window.getSupabaseConfig === 'function') ? window.getSupabaseConfig() : {};
+
+  const statusHtml = configured
+    ? `✅ Supabase konfigurert<br>Installasjon: <strong>${cfg.installSlug || 'ukjent'}</strong>`
+    : `❌ Supabase ikke konfigurert<br>Sjekk at config.js + supabase-config.js lastes`;
+
+  statusEl.innerHTML = `<p>${statusHtml}</p>`;
+}
