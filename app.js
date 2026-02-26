@@ -32,6 +32,29 @@ function withBase(path) {
   return `${base}${path}`.replace(/\/\/+/g, '/');
 }
 
+// === BEHAVIOR CONFIG (easy toggle) ===
+const TAP_BEHAVIOR = "C"; // "C" = welcome overlay, "A" = go directly to menu
+const PRIMARY_SCREEN = "map1"; // used by C mode
+const IDLE_MIN_MS = 15000; // keep idle at least 15s before ads can start
+
+let lastIdleTs = 0; // track when idle screen was shown
+
+// map artifacts cleanup (pulses, overlays, special layers)
+function clearMapArtifacts() {
+  document.querySelectorAll(
+    ".pulse, .pulse-dot, .map-pulse, .poi-pulse, [data-pulse], [data-overlay]"
+  ).forEach(el => el.remove());
+
+  const overlay = document.getElementById("mapOverlays");
+  if (overlay) overlay.innerHTML = "";
+
+  const mapLayer = document.getElementById("mapLayer");
+  if (mapLayer) {
+    mapLayer.style.backgroundImage = "";
+    mapLayer.style.display = "none";
+  }
+}
+
 // === DEBUG TOGGLE ===
 let DEBUG = false; // runtime-toggleable debug flag
 let editMode = false; // true while ArrowDown is held
@@ -188,6 +211,99 @@ function round3(v) {
   return Math.round(v * 1000) / 1000;
 }
 
+// --- Interaction helpers for onboarding/tap hint ---
+function isPassiveScreen(id) {
+  return id === "idle" || id === "ads" || id === "ad" || (id && id.includes("reklame"));
+}
+
+function recordTouch() {
+  const ts = Date.now();
+  try { localStorage.setItem('sx_last_touch_ts', String(ts)); } catch(e){/*ignore*/}
+  updateTouchHintOpacity();
+}
+
+function updateTouchHintOpacity() {
+  const hint = document.getElementById('touchHint');
+  if(!hint) return;
+  const last = parseInt(localStorage.getItem('sx_last_touch_ts') || '0', 10);
+  const age = Date.now() - last;
+  if (!last || age > 24 * 3600 * 1000) {
+    hint.style.opacity = '1';
+  } else {
+    hint.style.opacity = '0.35';
+  }
+}
+
+function updateTouchHintVisibility() {
+  const hint = document.getElementById('touchHint');
+  if(!hint) return;
+  if (isPassiveScreen(currentScreen)) {
+    hint.style.display = 'block';
+    updateTouchHintOpacity();
+  } else {
+    hint.style.display = 'none';
+  }
+}
+
+let welcomeOverlayEl = null;
+function showWelcomeOverlay() {
+  if (!welcomeOverlayEl) return;
+  welcomeOverlayEl.classList.remove('hidden');
+  requestAnimationFrame(() => welcomeOverlayEl.classList.add('visible'));
+}
+function hideWelcomeOverlay() {
+  if (!welcomeOverlayEl) return;
+  welcomeOverlayEl.classList.remove('visible');
+  setTimeout(() => welcomeOverlayEl.classList.add('hidden'), 300);
+}
+
+// DOM elements creation for hint and overlay
+function createTouchHint() {
+  const div = document.createElement('div');
+  div.id = 'touchHint';
+  div.setAttribute('aria-hidden','true');
+  div.textContent = 'Trykk på skjermen for å starte';
+  div.style.display = 'none';
+  document.body.appendChild(div);
+}
+
+function createWelcomeOverlay() {
+  const ov = document.createElement('div');
+  ov.id = 'welcomeOverlay';
+  ov.className = 'sx-overlay hidden';
+  ov.innerHTML = `
+    <div class="sx-card">
+      <div class="sx-title">Velkommen 👋</div>
+      <div class="sx-subtitle">Trykk for å finne frem</div>
+      <div class="sx-actions">
+        <button id="sxStartBtn" class="sx-btn primary">Kart</button>
+        <button id="sxMenuBtn" class="sx-btn">Meny</button>
+      </div>
+      <div class="sx-hint">Du kan alltid trykke på skjermen for å starte.</div>
+    </div>
+  `;
+  document.body.appendChild(ov);
+  welcomeOverlayEl = ov;
+
+  // interactions
+  ov.addEventListener('pointerdown', (ev) => {
+    if (ev.target === ov) {
+      hideWelcomeOverlay();
+      setScreen(PRIMARY_SCREEN);
+    }
+  });
+  document.getElementById('sxStartBtn').addEventListener('click', () => {
+    recordTouch();
+    hideWelcomeOverlay();
+    setScreen(PRIMARY_SCREEN);
+  });
+  document.getElementById('sxMenuBtn').addEventListener('click', () => {
+    recordTouch();
+    hideWelcomeOverlay();
+    setScreen('menu');
+  });
+}
+
 // String helpers
 const bgA = document.getElementById('bgA');
 const bgB = document.getElementById('bgB');
@@ -339,8 +455,21 @@ window.addEventListener('orientationchange', () => { if(currentScreen) applyLayo
 // Render actual hotspots and pulses for the current screen (mapped to image fit rect)
 function setScreen(screenName) {
   if (!SCREENS[screenName]) return console.error("Unknown screen:", screenName);
+
+  // detect transition from a map screen into a passive state
+  const leavingMap = currentScreen && (currentScreen.startsWith("map") || currentScreen.includes("map"));
+  const goingPassive = screenName === "idle" || screenName === "menu" || screenName === "floors" || screenName === "ads" || screenName === "ad" || (screenName && screenName.includes("reklame"));
+  if (leavingMap && goingPassive) {
+    clearMapArtifacts();
+  }
+
   currentScreen = screenName;
   const config = SCREENS[screenName];
+
+  // record when we entered idle so we can enforce minimum delay before ads
+  if (screenName === 'idle') {
+    lastIdleTs = Date.now();
+  }
 
 clearHotspots();
 stopAds();
@@ -396,6 +525,9 @@ safeSetBackground(config.bg);
     // don't await; startAdsLoop handles empty-ADS case itself
     startAdsLoop();
   }
+
+  // update hint visibility after screen change
+  updateTouchHintVisibility();
 }
 
 
@@ -1102,6 +1234,7 @@ function nextAd(){
 
 
 function showIdleBackground(){
+  clearMapArtifacts();
   stopAds();
   safeSetBackground(ASSETS.idle);
   markRendered();
@@ -1192,8 +1325,17 @@ function showAdByIndex(i){
 }
 
 async function startAdsLoop(adsList){
+  clearMapArtifacts();
   stopAds();
   safeSetBackground(ASSETS.idle);
+  // enforce minimum idle display before showing ads
+  if (currentScreen === 'idle') {
+    const now = Date.now();
+    const wait = IDLE_MIN_MS - (now - lastIdleTs);
+    if (wait > 0) {
+      return setTimeout(() => startAdsLoop(adsList), wait);
+    }
+  }
   if (Array.isArray(adsList)) {
     ADS = adsList;
   } else {
@@ -1202,11 +1344,32 @@ async function startAdsLoop(adsList){
   if(!ADS.length) return showIdleBackground();
   adIndex = 0;
   showAdByIndex(adIndex);
+  updateTouchHintVisibility();
 }
 
 function init(){
   // ensure admin link visibility follows debug
   updateAdminLink();
+
+  // setup onboarding UI elements
+  createTouchHint();
+  createWelcomeOverlay();
+
+  // global tap handler (records touch, handles passive screens)
+  document.addEventListener('pointerdown', (ev) => {
+    recordTouch();
+    if (isPassiveScreen(currentScreen)) {
+      // prevent hotspots / other behavior
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (TAP_BEHAVIOR === "A") {
+        clearMapArtifacts();
+        setScreen('menu');
+      } else {
+        showWelcomeOverlay();
+      }
+    }
+  });
 
   // always render idle immediately
   setScreen('idle');

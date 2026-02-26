@@ -200,6 +200,67 @@ html, body {
   line-height: 1.4;
 }
 
+/* touch hint pill */
+#touchHint {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.3);
+  backdrop-filter: blur(6px);
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  pointer-events: none;
+  z-index: 1000;
+  animation: float 3s ease-in-out infinite;
+  opacity: 1;
+  transition: opacity 0.3s;
+}
+
+@keyframes float {
+  0%,100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-4px); }
+}
+
+/* welcome overlay */
+.sx-overlay {
+  position: fixed;
+  top:0; left:0; right:0; bottom:0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.sx-overlay.visible { opacity: 1; }
+.sx-overlay.hidden { display: none !important; }
+
+.sx-card {
+  background: #fff;
+  padding: 24px;
+  border-radius: 12px;
+  max-width: 90%;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+.sx-overlay.visible .sx-card { transform: scale(1); }
+
+.sx-title { font-size: 24px; margin-bottom: 8px; }
+.sx-subtitle { font-size: 16px; margin-bottom: 16px; }
+.sx-actions { display: flex; gap: 12px; justify-content: center; margin-bottom: 12px; }
+.sx-btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
+.sx-btn.primary { background: #007acc; color: #fff; }
+.sx-hint { font-size: 12px; color: #555; margin-top: 8px; }
+
+.hidden { display: none !important; }
+}
+
 /* admin shortcut link, visible only in debug mode */
 #adminLink {
   position: fixed;
