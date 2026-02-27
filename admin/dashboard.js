@@ -170,11 +170,55 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   updateStatusPanel();
 
-  // DEBUG MODE: Press D to enable/disable dragging
+  // DEBUG MODE: Press D to enable/disable dragging & resizing
   let debugMode = false;
   let draggedEl = null;
   let offsetX = 0;
   let offsetY = 0;
+  let isResizing = false;
+  let resizeStartWidth = 0;
+  let resizeStartHeight = 0;
+  let resizeStartX = 0;
+  let resizeStartY = 0;
+  let debugInfo = null;
+
+  function createDebugInfo() {
+    const info = document.createElement('div');
+    info.id = 'debugInfo';
+    info.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(0,0,0,0.9);
+      color: #0f0;
+      font-family: monospace;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      z-index: 99998;
+      line-height: 1.6;
+      border: 2px solid #0f0;
+    `;
+    info.innerHTML = `
+      <div>🐛 DEBUG INFO</div>
+      <div id="debugDims" style="margin-top: 8px;">x: 0 | y: 0 | w: 0 | h: 0</div>
+      <div style="margin-top: 8px; font-size: 11px; color: #0a0;">
+        <div>📍 Shift+Dra = RESIZE</div>
+        <div>👆 Normal Dra = MOVE</div>
+      </div>
+    `;
+    document.body.appendChild(info);
+    return info;
+  }
+
+  function updateDebugInfo(el) {
+    if (!debugInfo) return;
+    const dims = document.getElementById('debugDims');
+    if (dims && el) {
+      const rect = el.getBoundingClientRect();
+      dims.textContent = `x: ${Math.round(rect.left)} | y: ${Math.round(rect.top)} | w: ${Math.round(rect.width)} | h: ${Math.round(rect.height)}`;
+    }
+  }
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'd' || e.key === 'D') {
@@ -183,16 +227,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log(`🐛 Debug mode: ${debugMode ? 'ON' : 'OFF'}`);
       
       if (debugMode) {
-        // Make draggable
+        debugInfo = createDebugInfo();
         const draggables = document.querySelectorAll('.logo, .panel, .title, button');
         draggables.forEach(el => {
           el.style.cursor = 'grab';
           el.addEventListener('mousedown', startDrag);
         });
         
-        alert('🐛 DEBUG MODE ON - Klikk og dra elementer for å flytte dem!\n\nTrykk D igjen for å slå av.');
+        alert('🐛 DEBUG MODE ON\n\n👆 Dra elementer for å flytte\n⬆️ Shift+Dra for å strekke/resize\n\nInfo vises nederst til venstre!');
       } else {
-        // Remove dragging
+        if (debugInfo) debugInfo.remove();
+        debugInfo = null;
         const draggables = document.querySelectorAll('.logo, .panel, .title, button');
         draggables.forEach(el => {
           el.style.cursor = '';
@@ -200,6 +245,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           el.style.position = '';
           el.style.left = '';
           el.style.top = '';
+          el.style.width = '';
+          el.style.height = '';
         });
       }
     }
@@ -211,13 +258,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!draggedEl) return;
 
     e.preventDefault();
-    draggedEl.style.position = 'fixed';
-    draggedEl.style.zIndex = '9999';
-    draggedEl.style.cursor = 'grabbing';
+    isResizing = e.shiftKey;
+    
+    if (isResizing) {
+      draggedEl.style.position = 'fixed';
+      draggedEl.style.zIndex = '9999';
+      draggedEl.style.cursor = 'nwse-resize';
+      
+      const rect = draggedEl.getBoundingClientRect();
+      resizeStartWidth = rect.width;
+      resizeStartHeight = rect.height;
+      resizeStartX = e.clientX;
+      resizeStartY = e.clientY;
+    } else {
+      draggedEl.style.position = 'fixed';
+      draggedEl.style.zIndex = '9999';
+      draggedEl.style.cursor = 'grabbing';
 
-    const rect = draggedEl.getBoundingClientRect();
-    offsetX = e.clientX - rect.left;
-    offsetY = e.clientY - rect.top;
+      const rect = draggedEl.getBoundingClientRect();
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+    }
 
     document.addEventListener('mousemove', drag);
     document.addEventListener('mouseup', stopDrag);
@@ -225,15 +286,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function drag(e) {
     if (!draggedEl || !debugMode) return;
-    draggedEl.style.left = (e.clientX - offsetX) + 'px';
-    draggedEl.style.top = (e.clientY - offsetY) + 'px';
+    
+    if (isResizing) {
+      const deltaX = e.clientX - resizeStartX;
+      const deltaY = e.clientY - resizeStartY;
+      const newWidth = Math.max(50, resizeStartWidth + deltaX);
+      const newHeight = Math.max(50, resizeStartHeight + deltaY);
+      
+      draggedEl.style.width = newWidth + 'px';
+      draggedEl.style.height = newHeight + 'px';
+    } else {
+      draggedEl.style.left = (e.clientX - offsetX) + 'px';
+      draggedEl.style.top = (e.clientY - offsetY) + 'px';
+    }
+    
+    updateDebugInfo(draggedEl);
   }
 
   function stopDrag() {
     if (draggedEl) {
-      draggedEl.style.cursor = 'grab';
+      draggedEl.style.cursor = debugMode ? 'grab' : '';
+      updateDebugInfo(draggedEl);
     }
     draggedEl = null;
+    isResizing = false;
     document.removeEventListener('mousemove', drag);
     document.removeEventListener('mouseup', stopDrag);
   }
