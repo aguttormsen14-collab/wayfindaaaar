@@ -1,5 +1,17 @@
 // admin/admin-ads.js — Supabase ads management (library only, no auto-init)
 
+// ===== SECURITY: HTML escape helper (XSS prevention) =====
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  };
+  return String(text || '').replace(/[&<>"']/g, ch => map[ch]);
+}
+
 function getSupabase() {
   const s = window.supabase;
 
@@ -178,8 +190,18 @@ async function uploadFiles(fileList, onProgress) {
   const uploaded = [];
 
   const supportedExt = ['.jpg', '.jpeg', '.png', '.webp', '.mp4'];
+  const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 
+  // ===== SECURITY: Input validation =====
   for (const file of fileList) {
+    // Check file size
+    if (file.size > MAX_FILE_SIZE) {
+      const msg = `❌ ${file.name}: exceeds 25 MB limit`;
+      console.warn('[ADMIN] File too large:', file.name, file.size);
+      if (onProgress) onProgress(msg);
+      continue;
+    }
+
     const dot = file.name.lastIndexOf('.');
     let ext = dot >= 0 ? file.name.slice(dot).toLowerCase() : '';
 
@@ -188,13 +210,16 @@ async function uploadFiles(fileList, onProgress) {
       ext = '.png';
     }
     if (!supportedExt.includes(ext)) {
-      const msg = 'Unsupported file type';
+      const msg = `❌ ${file.name}: unsupported file type`;
       console.warn('[ADMIN] Skipping unsupported file:', { name: file.name, type: file.type, ext });
       if (onProgress) onProgress(msg);
       continue;
     }
 
-    const fullPath = `installs/${cfg.installSlug}/assets/ads/${file.name}`;
+    // ===== SECURITY: Prevent path traversal =====
+    const sanitizedName = file.name.replace(/\.\.\//g, '').replace(/\\/g, '/');
+    const fullPath = `installs/${cfg.installSlug}/assets/ads/${sanitizedName}`;
+    
     console.log('[ADMIN] Uploading to:', fullPath);
     if (onProgress) onProgress(`Uploading ${file.name}...`);
 
@@ -202,15 +227,15 @@ async function uploadFiles(fileList, onProgress) {
       const { error } = await supabase.storage.from(bucket).upload(fullPath, file, { upsert: true });
       if (error) {
         console.error('[ADMIN] Upload failed:', error);
-        const msg = `❌ Upload failed: ${error.message || 'Unknown error'}`;
+        const msg = `❌ ${file.name}: ${error.message || 'Unknown error'}`;
         if (onProgress) onProgress(msg);
         continue;
       }
-      if (onProgress) onProgress(`✅ Uploaded: ${file.name}`);
+      if (onProgress) onProgress(`✅ ${file.name} uploaded`);
       uploaded.push(file.name);
     } catch (e) {
       console.error('[ADMIN] Upload exception:', e);
-      const msg = `❌ Upload failed: ${e?.message || 'Unknown error'}`;
+      const msg = `❌ ${file.name}: ${e?.message || 'Unknown error'}`;
       if (onProgress) onProgress(msg);
     }
   }
@@ -253,21 +278,26 @@ async function renderAdsList(containerEl, messageEl) {
   let html = '';
   ads.forEach((ad) => {
     const isVideo = ad.type === 'video';
+    // ===== SECURITY: Escape filename for safe HTML rendering =====
+    const escapedName = escapeHtml(ad.name);
+    const escapedPath = escapeHtml(ad.path);
+    const escapedUrl = escapeHtml(ad.publicUrl);
+    
     const thumb = isVideo
       ? `<div class="asset-thumb"><div style="width:100%;height:100%;background:#1e7bb8;display:flex;align-items:center;justify-content:center;border-radius:6px;"><span style="color:#fff;font-size:28px;">🎬</span></div></div>`
-      : `<div class="asset-thumb"><img src="${ad.publicUrl}" alt="${ad.name}" onerror="this.style.display='none';"></div>`;
+      : `<div class="asset-thumb"><img src="${escapedUrl}" alt="${escapedName}" onerror="this.style.display='none';"></div>`;
 
     html += `
       <div class="asset-row">
         ${thumb}
         <div class="asset-info">
-          <div class="asset-name">${ad.name}</div>
-          <div class="asset-meta">${ad.type === 'video' ? 'Video' : 'Bilde'}</div>
+          <div class="asset-name">${escapedName}</div>
+          <div class="asset-meta">${isVideo ? 'Video' : 'Bilde'}</div>
         </div>
         <div class="asset-actions">
-          <button class="asset-btn" onclick="copyAdUrl('${ad.publicUrl}', this)">📋 Kopier</button>
-          <button class="asset-btn" onclick="window.open('${ad.publicUrl}', '_blank')">🔗 Åpne</button>
-          <button class="asset-btn asset-btn-delete" onclick="deleteAdAndRefresh('${ad.path}')">🗑️ Slett</button>
+          <button class="asset-btn" onclick="copyAdUrl('${escapedUrl}', this)">📋 Kopier</button>
+          <button class="asset-btn" onclick="window.open('${escapedUrl}', '_blank')">🔗 Åpne</button>
+          <button class="asset-btn asset-btn-delete" onclick="deleteAdAndRefresh('${escapedPath}')">🗑️ Slett</button>
         </div>
       </div>
     `;
@@ -386,12 +416,14 @@ async function renderPlaylistEditor(containerEl) {
     const playlistItem = playlistItems.find(p => p.filename === ad.name);
     const isChecked = !!playlistItem;
     const duration = playlistItem?.duration || 8000;
+    // ===== SECURITY: Escape filename for safe HTML rendering =====
+    const escapedName = escapeHtml(ad.name);
     
     html += `
       <div class="playlist-item" style="display: flex; gap: 12px; align-items: center; padding: 10px; background: white; border-radius: 6px; border: 1px solid var(--border);">
-        <input type="checkbox" class="playlist-checkbox" data-filename="${ad.name}" ${isChecked ? 'checked' : ''} style="cursor: pointer;">
-        <span style="flex: 1; font-size: 14px;">${ad.name}</span>
-        <input type="number" class="playlist-duration" data-filename="${ad.name}" value="${duration / 1000}" min="1" max="60" style="width: 60px; padding: 6px; border: 1px solid var(--border); border-radius: 4px;" placeholder="Sek.">
+        <input type="checkbox" class="playlist-checkbox" data-filename="${escapedName}" ${isChecked ? 'checked' : ''} style="cursor: pointer;">
+        <span style="flex: 1; font-size: 14px;">${escapedName}</span>
+        <input type="number" class="playlist-duration" data-filename="${escapedName}" value="${duration / 1000}" min="1" max="60" style="width: 60px; padding: 6px; border: 1px solid var(--border); border-radius: 4px;" placeholder="Sek.">
         <span style="font-size: 12px; color: var(--text-muted);">sek</span>
       </div>
     `;

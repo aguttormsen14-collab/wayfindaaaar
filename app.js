@@ -126,7 +126,17 @@ function tryDemoFullscreenOnce(){
 
 // Install loader (select which install's assets to use)
 const params = new URLSearchParams(location.search);
-const INSTALL_ID = params.get("install") || "amfi-steinkjer";
+let INSTALL_ID = params.get("install") || "amfi-steinkjer";
+
+// ===== SECURITY: Validate installSlug before use =====
+function isValidInstallSlug(slug) {
+  if (typeof slug !== 'string') return false;
+  return /^[a-z0-9-]{2,40}$/.test(slug);
+}
+if (!isValidInstallSlug(INSTALL_ID)) {
+  console.warn('[SECURITY] Invalid installSlug:', INSTALL_ID, '→ fallback to amfi-steinkjer');
+  INSTALL_ID = "amfi-steinkjer";
+}
 
 const BASE_ASSETS = withBase(`installs/${INSTALL_ID}/assets`);
 const SCREEN_ASSETS = `${BASE_ASSETS}/screens`;
@@ -1106,24 +1116,49 @@ async function loadPlaylist() {
 
 // AUDIT: applyPlaylist - reorders/filters ADS array based on playlist
 // Only keeps ads that match playlist items; respects order and duration
+// ===== SECURITY: Schema-lite validation =====
+function isValidPlaylistItem(item) {
+  if (typeof item !== 'object' || item === null) return false;
+  if (typeof item.filename !== 'string') return false;
+  
+  // Duration must be between 3s and 120s
+  const duration = item.duration;
+  if (typeof duration !== 'number' || duration < 3000 || duration > 120000) {
+    return false;
+  }
+  
+  // Optional: check file extension is safe
+  const ext = (item.filename || '').toLowerCase();
+  if (!ext.match(/\.(jpg|jpeg|png|webp|mp4)$/i)) {
+    return false;
+  }
+  
+  return true;
+}
+
 function applyPlaylist(allAds, playlist) {
   try {
     if (!playlist || !playlist.items) return allAds; // fallback
     
     const result = [];
     for (const item of playlist.items) {
+      // ===== SECURITY: Skip invalid items silently =====
+      if (!isValidPlaylistItem(item)) {
+        demoLog('[PLAYLIST] Skipping invalid item:', item);
+        continue;
+      }
+      
       const match = allAds.find(ad => ad.filename === item.filename);
       if (match) {
-        // GUARD: respect duration stored in playlist (default 8s if not set)
-        const duration = item.duration || 8000;
+        const duration = item.duration; // already validated above
         result.push({ ...match, duration });
       } else {
-        console.warn('[PLAYLIST] File not found:', item.filename);
+        demoLog('[PLAYLIST] File not found:', item.filename);
       }
     }
     
     if (result.length === 0) {
-      console.warn('[PLAYLIST] No matching files found in ads folder');
+      console.warn('[PLAYLIST] No valid/matching files found in ads folder');
       return allAds; // fallback to all
     }
     
