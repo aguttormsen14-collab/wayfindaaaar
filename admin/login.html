@@ -74,12 +74,14 @@
       return `${window.SX_BASE_PATH || "/"}${path}`;
     }
     
-    // Load logo from correct installation path
+    // Load logo from correct installation path (relative to admin folder)
     document.addEventListener("DOMContentLoaded", () => {
       const img = document.getElementById("sxLogo");
       if (img) {
-        const logoPath = `installs/${INSTALL_ID}/assets/brand/saxvik-hub/Current/saxvik-hub-logo.png`;
-        img.src = asset(logoPath);
+        // Use relative path from admin/ folder
+        const logoPath = `../installs/${INSTALL_ID}/assets/brand/saxvik-hub/Current/saxvik-hub-logo.png`;
+        img.src = logoPath;
+        console.log('[LOGIN] Logo path:', logoPath);
       }
     });
   </script>
