@@ -16,11 +16,11 @@
           src=""
           alt="Saxvik Hub"
           class="logo"
-          onerror="console.error('Logo ikke funnet:', this.src);"
-          data-asset="assets/brand/saxvik-hub-logo.png"
+          onerror="this.style.display='none';"
+          data-asset-dynamic="true"
         />
         <div class="title-text">
-          <h1>Saxvik Admin</h1>
+          <h1>🎨 Saxvik Admin</h1>
           <p>Infoskjerm kontrollpanel</p>
         </div>
       </div>
@@ -100,9 +100,14 @@
   
   <!-- GitHub Pages asset path fixup (uses SX_BASE_PATH from base-path.js) -->
   <script>
+    // Get install ID from URL or use default
+    const params = new URLSearchParams(location.search);
+    const INSTALL_ID = params.get("install") || "amfi-steinkjer";
+
     function asset(path) {
       return `${window.SX_BASE_PATH || "/"}${path}`;
     }
+    
     // Apply to any element with data-asset
     document.querySelectorAll('[data-asset]').forEach((el) => {
       const p = el.getAttribute('data-asset');
@@ -110,10 +115,14 @@
       if (el.tagName === 'IMG' || el.tagName === 'SCRIPT') el.src = asset(p);
       else if (el.tagName === 'LINK') el.href = asset(p);
     });
-    // ensure logo is explicitly set after DOMContentLoaded
+    
+    // Load logo from correct installation path
     document.addEventListener("DOMContentLoaded", () => {
-      const img = document.getElementById("sxLogo") || document.querySelector("img[data-role='logo']");
-      if (img) img.src = asset("assets/brand/saxvik-hub-logo.png");
+      const img = document.getElementById("sxLogo");
+      if (img) {
+        const logoPath = `installs/${INSTALL_ID}/assets/brand/saxvik-hub/Current/saxvik-hub-logo.png`;
+        img.src = asset(logoPath);
+      }
     });
   </script>
 
