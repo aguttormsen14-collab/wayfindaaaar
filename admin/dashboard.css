@@ -676,11 +676,11 @@ body {
 }
 
 #settingsPanel {
-  grid-column: span 7;
+  grid-column: span 6;
 }
 
 .grid .panel.col-12:last-of-type {
-  grid-column: span 5;
+  grid-column: span 6;
 }
 
 @media (max-width: 1200px) {
