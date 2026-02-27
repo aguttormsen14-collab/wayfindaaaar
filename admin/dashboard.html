@@ -11,24 +11,12 @@
   <div class="shell">
     <div class="topbar">
       <div class="title">
-        <!-- Logo fallback: SVG if image fails -->
-        <svg id="sxLogoFallback" class="logo logo-fallback" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style="stop-color:#fff;stop-opacity:1" />
-              <stop offset="100%" style="stop-color:#e0e7ff;stop-opacity:1" />
-            </linearGradient>
-          </defs>
-          <circle cx="100" cy="100" r="95" fill="url(#logoGrad)" stroke="white" stroke-width="3"/>
-          <text x="100" y="130" font-size="90" font-weight="bold" text-anchor="middle" fill="#1e7bb8">S</text>
-        </svg>
-        <!-- Real logo (loads if available) -->
+        <!-- Real logo - takes full left area -->
         <img
           id="sxLogo"
           src=""
           alt="Saxvik Hub"
           class="logo"
-          onerror="document.getElementById('sxLogoFallback').style.display='block';"
           data-asset-dynamic="true"
         />
         <div class="title-text">
