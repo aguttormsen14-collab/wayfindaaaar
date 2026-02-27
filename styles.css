@@ -335,3 +335,49 @@ html, body {
   inset: 0;
   z-index: 5;
 }
+
+/* ===== PRODUCTION HARDENING START ===== */
+/* Prevent text selection, dragging, and unwanted interactions */
+html, body, * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+/* Prevent pinch-zoom, no double-tap zoom */
+html {
+  touch-action: manipulation !important;
+  overscroll-behavior: none !important;
+}
+
+/* Disable zoom on input focus (mobile) */
+input, textarea, select {
+  font-size: 16px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Kill unwanted visual feedback */
+* {
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+/* Prevent scroll on body/html */
+body {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  max-height: 100vh;
+  overscroll-behavior: none;
+}
+
+/* Ensure no accidental scrolling on hotspots/menu */
+.hotspot, .hotspots, #menuScreen {
+  -webkit-overflow-scrolling: none;
+}
+
+/* ===== PRODUCTION HARDENING END ===== */

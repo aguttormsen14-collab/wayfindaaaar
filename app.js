@@ -1612,6 +1612,95 @@ function init(){
     }
   });
 
+  // ===== PRODUCTION HARDENING START =====
+  // Prevent context menu (right-click), text selection, drag, etc.
+  document.addEventListener('contextmenu', (e) => e.preventDefault(), true);
+  document.addEventListener('selectstart', (e) => e.preventDefault(), true);
+  document.addEventListener('dragstart', (e) => e.preventDefault(), true);
+  document.addEventListener('touchmove', (e) => {
+    // allow scroll on specific elements only
+    const target = e.target;
+    if (!target || (!target.closest('.hotspot') && !target.closest('#menuScreen'))) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  // Prevent accidental navigation via links
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[href]');
+    if (link && !link.closest('.admin-panel') && !link.closest('#adminLink')) {
+      e.preventDefault();
+      demoLog('[HARDENING] Link click blocked: ' + link.href);
+    }
+  }, true);
+
+  // Override window.open to prevent popup escape
+  const originalOpen = window.open;
+  window.open = function(...args) {
+    demoLog('[HARDENING] window.open blocked: ' + args[0]);
+    return null;
+  };
+
+  // Visibility/tab-hidden handling: pause media without breaking state
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      demoLog('[HARDENING] Tab hidden - pausing video');
+      if (videoEl && !videoEl.paused) {
+        videoEl.pause();
+      }
+    } else {
+      demoLog('[HARDENING] Tab visible - resuming video if was playing');
+      if (videoEl && adsRunning && videoEl.paused) {
+        videoEl.play().catch(() => demoLog('[HARDENING] Resume failed'));
+      }
+    }
+  });
+
+  // Fullscreen exit listener: re-enter fullscreen if on idle (kiosk mode)
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement && currentScreen === 'idle') {
+      demoLog('[HARDENING] Fullscreen exited on idle - re-entering in 1s...');
+      setTimeout(() => {
+        if (currentScreen === 'idle' && !document.fullscreenElement) {
+          const el = document.documentElement;
+          if (el && el.requestFullscreen) {
+            el.requestFullscreen().catch(() => demoLog('[HARDENING] Re-fullscreen failed'));
+          }
+        }
+      }, 1000);
+    }
+  });
+
+  // Global unhandled error handler: recovery to idle
+  window.addEventListener('error', (event) => {
+    demoLog('[HARDENING] Unhandled error: ' + (event.message || event.error));
+    if (currentScreen !== 'idle') {
+      setTimeout(() => {
+        demoLog('[HARDENING] Recovering to idle after error');
+        stopAdsNow();
+        clearMapArtifacts();
+        setScreen('idle');
+        showIdleBackground();
+      }, 500);
+    }
+  });
+
+  // Global unhandled promise rejection handler
+  window.addEventListener('unhandledrejection', (event) => {
+    demoLog('[HARDENING] Unhandled promise rejection: ' + (event.reason || 'unknown'));
+    event.preventDefault();
+    if (currentScreen !== 'idle') {
+      setTimeout(() => {
+        demoLog('[HARDENING] Recovering to idle after promise rejection');
+        stopAdsNow();
+        clearMapArtifacts();
+        setScreen('idle');
+        showIdleBackground();
+      }, 500);
+    }
+  });
+  // ===== PRODUCTION HARDENING END =====
+
   // always render idle immediately
   setScreen('idle');
   showIdleBackground();
