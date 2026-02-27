@@ -61,6 +61,27 @@
       console.error('[PREFLIGHT] Supabase client library (CDN) not loaded');
     }
   </script>
+
+  <!-- PWA Service Worker Registration (non-caching, installability only) -->
+  <script>
+    // Register service worker for PWA installability on Android
+    // SW is intentionally non-caching to avoid stale content in kiosks
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/wayfindaaaar/sw.js')
+        .then(reg => {
+          // Only log in debug mode if available
+          if (typeof DEBUG !== 'undefined' && DEBUG) {
+            console.log('[SW] Registered:', reg.scope);
+          }
+        })
+        .catch(err => {
+          // Silent fail - app works without SW
+          if (typeof DEBUG !== 'undefined' && DEBUG) {
+            console.warn('[SW] Registration failed (app still works):', err);
+          }
+        });
+    }
+  </script>
 </body>
 
 </html>
