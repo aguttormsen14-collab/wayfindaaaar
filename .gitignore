@@ -1,5 +1,28 @@
 # ignore local supabase credentials
 config.local.js
+.env.local
 
 # ensure GitHub Pages includes this helper
 !supabase-config.js
+
+# Node/npm (for saxvik-hub Next.js project)
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Environment files (never commit)
+.env
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+

@@ -1,0 +1,11 @@
+// GitHub Pages configuration template
+// RENAME THIS TO config.js and fill in YOUR Supabase credentials
+// Never commit actual keys to git!
+
+// Get these from: https://app.supabase.com → Settings → API
+window.SUPABASE_URL = "https://YOUR_PROJECT_ID.supabase.co";
+window.SUPABASE_ANON_KEY = "your-anon-key-here";
+
+// optional overrides
+window.SUPABASE_BUCKET = "saxvik-hub";
+window.DEFAULT_INSTALL_SLUG = "amfi-steinkjer";

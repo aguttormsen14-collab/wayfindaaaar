@@ -1,16 +1,54 @@
-// admin/dashboard.js — stable admin bootstrap
+// admin/dashboard.js — stable admin bootstrap with Supabase Auth
 
-function checkAuth() {
-  const raw = localStorage.getItem('sx_auth');
-  try {
-    const obj = JSON.parse(raw);
-    if (!obj || !obj.ok) throw new Error('bad');
-  } catch (e) {
-    console.log('no valid auth, redirecting');
-    location.href = './login.html';
+// ===== SECURITY: Access guard (role + tenant validation) =====
+(async function checkAccess() {
+  const { data: sessionData } = await supabase.auth.getSession();
+
+  if (!sessionData.session) {
+    window.location.href = "/admin/login.html";
+    return;
   }
+
+  const user = sessionData.session.user;
+
+  const { data: roleData, error } = await supabase
+    .from("user_roles")
+    .select("*")
+    .eq("user_id", user.id)
+    .single();
+
+  if (error || !roleData) {
+    alert("Ingen tilgang");
+    await supabase.auth.signOut();
+    window.location.href = "/admin/login.html";
+    return;
+  }
+
+  const currentInstall =
+    new URLSearchParams(window.location.search).get("install");
+
+  if (roleData.install_slug !== currentInstall) {
+    alert("Feil installasjon");
+    window.location.href = "/admin/login.html";
+    return;
+  }
+})();
+
+async function checkAuth() {
+  const { user, error } = await adminGetSession();
+  
+  if (!user || error) {
+    console.log('[ADMIN] No valid session, redirecting to login');
+    location.href = './login.html';
+    return false;
+  }
+  
+  console.log('[ADMIN] User authenticated:', user.email);
+  return true;
 }
-checkAuth();
+
+// Perform auth check immediately
+let authCheckPromise = checkAuth();
 
 // helper for dynamic supabase client retrieval (mirrors admin-ads.js)
 function getSupabase() {
@@ -19,11 +57,11 @@ function getSupabase() {
   return null;
 }
 
-// Logout
+// Logout with Supabase Auth
 const logoutBtn = document.getElementById('logoutBtn');
 if (logoutBtn) {
-  logoutBtn.addEventListener('click', () => {
-    localStorage.removeItem('sx_auth');
+  logoutBtn.addEventListener('click', async () => {
+    await adminSignOut();
     location.href = './login.html';
   });
 }
