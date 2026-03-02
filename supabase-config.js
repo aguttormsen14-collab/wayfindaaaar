@@ -40,9 +40,8 @@ window.getSupabaseConfig = function() {
 };
 
 // Create a single Supabase client instance (singleton)
-// This module is responsible for ensuring exactly one client exists and
-// providing clear logs. Other scripts should simply reference
-// `window.supabase` after this file has run.
+// window.supabase = CDN library (with createClient method)
+// window.supabaseClient = actual client instance
 (function initSupabaseClientSingleton() {
   function attempt() {
     if (!window.isSupabaseConfigured()) return false;
@@ -50,20 +49,17 @@ window.getSupabaseConfig = function() {
     // nothing to do until the CDN library is available
     if (!window.supabase) return false;
 
-    // if the object already carries our singleton flag or behaves like a
-    // client (has storage but not createClient) we treat it as the instance.
-    if (window.supabase.__sx_singleton || (window.supabase.storage && !window.supabase.createClient)) {
-      console.log('[supabase-config] singleton exists');
+    // if client already exists, we're done
+    if (window.supabaseClient) {
+      console.log('[supabase-config] client already exists');
       return true;
     }
 
     // if the CDN library is loaded, create the client now
     if (typeof window.supabase.createClient === 'function') {
       const cfg = window.getSupabaseConfig();
-      const client = window.supabase.createClient(cfg.url, cfg.anonKey);
-      client.__sx_singleton = true;
-      window.supabase = client;
-      console.log('[supabase-config] singleton created');
+      window.supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey);
+      console.log('[supabase-config] client created');
       return true;
     }
 

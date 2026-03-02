@@ -13,10 +13,10 @@ function escapeHtml(text) {
 }
 
 function getSupabase() {
-  const s = window.supabase;
+  const s = window.supabaseClient;
 
-  // A valid client has .storage and does NOT expose createClient
-  if (s && s.storage && typeof s.createClient !== "function") {
+  // A valid client has .storage and .auth
+  if (s && s.storage) {
     return s;
   }
 
@@ -31,8 +31,8 @@ function withBase(path) {
 
 // show immediate error if supabase client not ready
 function isSupabaseReady() {
-  const s = window.supabase;
-  return !!(s && s.storage && typeof s.createClient !== 'function');
+  const s = window.supabaseClient;
+  return !!(s && s.storage);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

@@ -2,7 +2,14 @@
 
 // ===== SECURITY: Access guard (role + tenant validation) =====
 (async function checkAccess() {
-  const { data: sessionData } = await supabase.auth.getSession();
+  const client = window.supabaseClient;
+  if (!client) {
+    console.error('[DASHBOARD] Supabase client not initialized');
+    window.location.href = "/admin/login.html";
+    return;
+  }
+
+  const { data: sessionData } = await client.auth.getSession();
 
   if (!sessionData.session) {
     window.location.href = "/admin/login.html";
@@ -11,7 +18,7 @@
 
   const user = sessionData.session.user;
 
-  const { data: roleData, error } = await supabase
+  const { data: roleData, error } = await client
     .from("user_roles")
     .select("*")
     .eq("user_id", user.id)
@@ -19,7 +26,7 @@
 
   if (error || !roleData) {
     alert("Ingen tilgang");
-    await supabase.auth.signOut();
+    await client.auth.signOut();
     window.location.href = "/admin/login.html";
     return;
   }
@@ -52,8 +59,8 @@ let authCheckPromise = checkAuth();
 
 // helper for dynamic supabase client retrieval (mirrors admin-ads.js)
 function getSupabase() {
-  const s = window.supabase;
-  if (s && s.storage && typeof s.createClient !== 'function') return s;
+  const s = window.supabaseClient;
+  if (s && s.storage) return s;
   return null;
 }
 
@@ -128,9 +135,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // If supabase client not ready (singleton should have replaced the global)
-  const s = window.supabase;
-  const supabaseReady = !!(s && s.storage && typeof s.createClient !== 'function');
+  // If supabase client not ready
+  const s = window.supabaseClient;
+  const supabaseReady = !!(s && s.storage);
   if (!supabaseReady) {
     showBootError(
       'Supabase CDN-biblioteket er ikke lastet eller klienten er ikke klar.',
