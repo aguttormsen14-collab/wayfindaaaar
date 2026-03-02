@@ -52,14 +52,15 @@
   <!-- GitHub Pages base path detection (FIRST) -->
   <script src="../base-path.js"></script>
 
-  <!-- Configuration from parent directory -->
-  <script src="../config.js"></script>
-
-  <!-- Supabase client library from CDN (before helpers if used) -->
+  <!-- Supabase client library from CDN (before config/helpers) -->
   <!-- v2 official bundle; must load before supabase-config.js and any code using window.supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Supabase configuration helpers -->
+  <!-- Configuration from parent directory (local overrides first) -->
+  <script src="../config.local.js" onerror="console.log('[LOGIN] config.local.js not found (optional)')"></script>
+  <script src="../config.js"></script>
+
+  <!-- Supabase configuration helpers (creates window.supabaseClient) -->
   <script src="../supabase-config.js"></script>
 
   <!-- Admin authentication helpers (Supabase Auth) -->
