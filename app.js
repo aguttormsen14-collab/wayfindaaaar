@@ -849,6 +849,76 @@ function clearHotspots(){
   while(hotspotsEl.firstChild) hotspotsEl.removeChild(hotspotsEl.firstChild);
 }
 
+let activeDemoRoute = null;
+let demoRouteSvg = null;
+let demoRoutePath = null;
+
+function clearDemoRouteOverlay() {
+  if (demoRouteSvg) {
+    demoRouteSvg.remove();
+    demoRouteSvg = null;
+    demoRoutePath = null;
+  }
+}
+
+function setActiveDemoRoute(screenName, from, to) {
+  if (!from || !to) {
+    activeDemoRoute = null;
+    clearDemoRouteOverlay();
+    return;
+  }
+
+  activeDemoRoute = {
+    screenName,
+    from: { x: clamp01(from.x), y: clamp01(from.y) },
+    to: { x: clamp01(to.x), y: clamp01(to.y) },
+  };
+}
+
+function renderDemoRouteOverlay(screenName, fit) {
+  if (!activeDemoRoute || activeDemoRoute.screenName !== screenName) {
+    clearDemoRouteOverlay();
+    return;
+  }
+
+  const rect = hotspotsEl.getBoundingClientRect();
+  const width = Math.max(1, rect.width || window.innerWidth || 1);
+  const height = Math.max(1, rect.height || window.innerHeight || 1);
+
+  if (!demoRouteSvg) {
+    demoRouteSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    demoRouteSvg.classList.add('route-overlay');
+    demoRouteSvg.setAttribute('aria-hidden', 'true');
+
+    demoRoutePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    demoRoutePath.classList.add('route-path');
+    demoRouteSvg.appendChild(demoRoutePath);
+
+    hotspotsEl.appendChild(demoRouteSvg);
+  }
+
+  demoRouteSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  demoRouteSvg.setAttribute('width', String(width));
+  demoRouteSvg.setAttribute('height', String(height));
+
+  const startX = fit.left + activeDemoRoute.from.x * fit.width;
+  const startY = fit.top + activeDemoRoute.from.y * fit.height;
+  const endX = fit.left + activeDemoRoute.to.x * fit.width;
+  const endY = fit.top + activeDemoRoute.to.y * fit.height;
+  const curveLift = Math.max(16, fit.height * 0.045);
+  const controlX = (startX + endX) / 2;
+  const controlY = Math.min(startY, endY) - curveLift;
+
+  demoRoutePath.setAttribute('d', `M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}`);
+
+  const pathLength = demoRoutePath.getTotalLength();
+  demoRoutePath.style.strokeDasharray = `${pathLength}`;
+  demoRoutePath.style.strokeDashoffset = `${pathLength}`;
+  demoRoutePath.classList.remove('route-path-animate');
+  demoRoutePath.getBoundingClientRect();
+  demoRoutePath.classList.add('route-path-animate');
+}
+
 // Render actual hotspots and pulses for the current screen
 // Ensure we can compute the visible image rect (fit rect) for mapping normalized coordinates
 const imageSizeCache = {};
@@ -927,6 +997,8 @@ async function applyLayout(screenName){
     el.style.left = pxLeft + 'px';
     el.style.top = pxTop + 'px';
   });
+
+  renderDemoRouteOverlay(screenName, fit);
 }
 
 // re-layout on resize/orientation
@@ -942,6 +1014,10 @@ window.addEventListener('orientationchange', () => {
 // Render actual hotspots and pulses for the current screen (mapped to image fit rect)
 function setScreen(screenName) {
   if (!SCREENS[screenName]) return console.error("Unknown screen:", screenName);
+
+  if (activeDemoRoute && activeDemoRoute.screenName !== screenName) {
+    setActiveDemoRoute(null, null, null);
+  }
 
   // detect transition from a map screen into a passive state
   const leavingMap = isMapScreenId(currentScreen);
@@ -1025,6 +1101,9 @@ safeSetBackground(config.bg);
 
       if (screenName === 'map1' && h.id === 'minibank') {
         ensureMapPulse('minibank_pulse', 0.444, 0.527);
+        const fromPulse = (config.pulses || []).find((pulse) => String(pulse?.id || '') === 'you_are_here') || { x: 0.415, y: 0.538 };
+        setActiveDemoRoute('map1', { x: fromPulse.x, y: fromPulse.y }, { x: 0.444, y: 0.527 });
+        applyLayout(screenName);
       }
 
       if (h.go) {
