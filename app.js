@@ -68,8 +68,11 @@ function scheduleAdsAfterIdle() {
   idleToAdsTimer = setTimeout(() => {
     if (!adsRunning && !isAdsScreen(currentScreen)) {
       clearMapArtifacts();
-      if (typeof showAdsOverlay === "function") showAdsOverlay();
-      else if (typeof startAdsLoop === "function") startAdsLoop();
+      if (typeof startAdsLoop === "function") {
+        startAdsLoop();
+      } else if (typeof showAdsOverlay === "function") {
+        showAdsOverlay();
+      }
       adsRunning = true;
     }
   }, delayMs);
