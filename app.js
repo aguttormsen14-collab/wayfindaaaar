@@ -201,7 +201,8 @@ const SCREENS = {
     bg: ASSETS.map1,
     hotspots: [
       { id: "back_to_floors", x: 0.173, y: 0.081, w: 0.236, h: 0.083, go: "floors", label: "Back" },
-      { id: "to_tech_map", x: 0.817, y: 0.159, w: 0.236, h: 0.061, go: "tech_map1", label: "Tech" }
+      { id: "to_tech_map", x: 0.817, y: 0.159, w: 0.236, h: 0.061, go: "tech_map1", label: "Tech" },
+      { id: "minibank", x: 0.817, y: 0.262, w: 0.236, h: 0.061, uiButton: true, uiLabel: "Minibank", label: "Minibank" }
     ],
     pulses: [ { id: "you_are_here", x: 0.415, y: 0.538 } ]
   },
@@ -279,6 +280,8 @@ function normalizeScreenItem(screenId, item) {
           h: Number(hotspot.h),
           go: hotspot.go ? String(hotspot.go) : undefined,
           label: hotspot.label ? String(hotspot.label) : undefined,
+          uiButton: hotspot.uiButton === true,
+          uiLabel: hotspot.uiLabel ? String(hotspot.uiLabel) : undefined,
           storeId: hotspot.storeId ? String(hotspot.storeId) : undefined,
           popup: hotspot.popup && typeof hotspot.popup === 'object'
             ? {
@@ -393,6 +396,8 @@ function buildScreensConfigPayload() {
           h: Math.round(Number(h.h || 0) * 1000) / 1000,
           ...(h.go && { go: String(h.go) }),
           ...(h.label && { label: String(h.label) }),
+          ...(h.uiButton === true && { uiButton: true }),
+          ...(h.uiLabel && { uiLabel: String(h.uiLabel) }),
           ...(h.storeId && { storeId: String(h.storeId) }),
           ...(h.popup && typeof h.popup === 'object' && {
             popup: {
@@ -954,6 +959,14 @@ safeSetBackground(config.bg);
     btn.style.position = 'absolute';
     btn.style.pointerEvents = 'auto';
     btn.style.transform = 'translate(-50%, -50%)';
+
+    if (h.uiButton) {
+      btn.classList.add('hotspot-pill');
+      const labelEl = document.createElement('span');
+      labelEl.className = 'hotspot-pill-label';
+      labelEl.textContent = h.uiLabel || h.label || h.id;
+      btn.appendChild(labelEl);
+    }
 
     let lastActivationTs = 0;
     const activateHotspot = (ev) => {

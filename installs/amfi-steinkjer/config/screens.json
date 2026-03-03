@@ -42,7 +42,8 @@
       "bg": "map1.png",
       "hotspots": [
         { "id": "back_to_floors", "x": 0.173, "y": 0.081, "w": 0.236, "h": 0.083, "go": "floors", "label": "Back" },
-        { "id": "to_tech_map", "x": 0.817, "y": 0.159, "w": 0.236, "h": 0.061, "go": "tech_map1", "label": "Tech" }
+        { "id": "to_tech_map", "x": 0.817, "y": 0.159, "w": 0.236, "h": 0.061, "go": "tech_map1", "label": "Tech" },
+        { "id": "minibank", "x": 0.817, "y": 0.262, "w": 0.236, "h": 0.061, "uiButton": true, "uiLabel": "Minibank", "label": "Minibank" }
       ],
       "pulses": [
         { "id": "you_are_here", "x": 0.415, "y": 0.538 }
