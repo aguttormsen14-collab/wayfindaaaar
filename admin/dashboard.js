@@ -235,6 +235,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateWeather();
 
   updateStatusPanel();
+  await initScreenEditor(supabase, cfg);
 
   // DEBUG MODE: Press D to enable/disable dragging & resizing
   let debugMode = false;
@@ -420,4 +421,315 @@ async function updateStatusPanel() {
     : `❌ Supabase ikke konfigurert<br>Sjekk at config.js + supabase-config.js lastes`;
 
   statusEl.innerHTML = `<p>${statusHtml}</p>`;
+}
+
+const screenEditorState = {
+  supabase: null,
+  cfg: null,
+  data: null,
+  currentScreenId: null,
+  autosaveTimer: null,
+  saving: false,
+  queued: false,
+};
+
+function editorStatusClass(type) {
+  if (type === 'ok') return 'screen-editor-status-ok';
+  if (type === 'error') return 'screen-editor-status-error';
+  return 'screen-editor-status-warn';
+}
+
+function setScreenEditorStatus(message, type = 'warn') {
+  const el = document.getElementById('screenEditorStatus');
+  if (!el) return;
+  el.className = `message ${editorStatusClass(type)}`;
+  el.textContent = message;
+}
+
+function withBase(path) {
+  const base = window.SX_BASE_PATH || '/';
+  return `${base}${path}`.replace(/\/\/+/, '/');
+}
+
+function round3(value) {
+  return Math.round(Number(value) * 1000) / 1000;
+}
+
+function clamp01(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(1, n));
+}
+
+function screensConfigPath(installSlug) {
+  return `installs/${installSlug}/config/screens.json`;
+}
+
+function getScreenBgUrl(installSlug, rawBg, screenId) {
+  if (typeof rawBg !== 'string' || !rawBg.trim()) {
+    return withBase(`installs/${installSlug}/assets/screens/${screenId}.png`);
+  }
+  const bg = rawBg.trim();
+  if (bg.startsWith('http://') || bg.startsWith('https://') || bg.startsWith('data:')) return bg;
+  if (bg.startsWith('/')) return bg;
+  if (bg.includes('/')) return withBase(bg);
+  return withBase(`installs/${installSlug}/assets/screens/${bg}`);
+}
+
+async function loadScreensConfigForEditor() {
+  const { supabase, cfg } = screenEditorState;
+  const path = screensConfigPath(cfg.installSlug);
+
+  try {
+    const { data, error } = await supabase.storage.from(cfg.bucket).download(path);
+    if (error || !data) {
+      setScreenEditorStatus('Fant ikke screens.json i Storage for denne installasjonen', 'error');
+      return false;
+    }
+
+    const text = await data.text();
+    const parsed = JSON.parse(text);
+
+    if (!parsed || typeof parsed !== 'object' || !parsed.screens || !parsed.screenOrder) {
+      setScreenEditorStatus('Ugyldig screens.json format', 'error');
+      return false;
+    }
+
+    screenEditorState.data = parsed;
+    const firstScreen = parsed.screenOrder.find((id) => parsed.screens[id]);
+    screenEditorState.currentScreenId = firstScreen || null;
+    return true;
+  } catch (e) {
+    console.error('[SCREEN EDITOR] Load failed:', e);
+    setScreenEditorStatus('Feil ved lasting av screens.json', 'error');
+    return false;
+  }
+}
+
+function renderScreenEditorSelect() {
+  const selectEl = document.getElementById('screenEditorSelect');
+  if (!selectEl || !screenEditorState.data) return;
+
+  selectEl.innerHTML = '';
+  screenEditorState.data.screenOrder.forEach((screenId) => {
+    if (!screenEditorState.data.screens[screenId]) return;
+    const option = document.createElement('option');
+    option.value = screenId;
+    option.textContent = screenId;
+    selectEl.appendChild(option);
+  });
+
+  if (screenEditorState.currentScreenId) {
+    selectEl.value = screenEditorState.currentScreenId;
+  }
+}
+
+function updateScreenEditorHotspotVisual(element, hotspot) {
+  element.style.left = `${hotspot.x * 100}%`;
+  element.style.top = `${hotspot.y * 100}%`;
+  element.style.width = `${hotspot.w * 100}%`;
+  element.style.height = `${hotspot.h * 100}%`;
+  const label = element.querySelector('.screen-editor-hotspot-label');
+  if (label) {
+    label.textContent = `${hotspot.id} x:${round3(hotspot.x)} y:${round3(hotspot.y)} w:${round3(hotspot.w)} h:${round3(hotspot.h)}`;
+  }
+}
+
+async function saveScreensConfigNow(reason = 'manual') {
+  const { supabase, cfg, data } = screenEditorState;
+  if (!supabase || !cfg || !data) return false;
+  const path = screensConfigPath(cfg.installSlug);
+  const payload = JSON.stringify(data, null, 2);
+
+  screenEditorState.saving = true;
+  setScreenEditorStatus(`Lagrer (${reason})…`, 'warn');
+
+  try {
+    const { error } = await supabase.storage
+      .from(cfg.bucket)
+      .update(path, new Blob([payload], { type: 'application/json' }), { upsert: true });
+
+    if (error) {
+      setScreenEditorStatus(`Lagring feilet: ${error.message || 'ukjent feil'}`, 'error');
+      return false;
+    }
+
+    setScreenEditorStatus('✅ Lagret til screens.json', 'ok');
+    return true;
+  } catch (e) {
+    console.error('[SCREEN EDITOR] Save failed:', e);
+    setScreenEditorStatus('Lagring feilet (exception)', 'error');
+    return false;
+  } finally {
+    screenEditorState.saving = false;
+  }
+}
+
+function scheduleScreenEditorAutosave(reason = 'edit') {
+  if (screenEditorState.autosaveTimer) {
+    clearTimeout(screenEditorState.autosaveTimer);
+  }
+
+  screenEditorState.autosaveTimer = setTimeout(async () => {
+    screenEditorState.autosaveTimer = null;
+
+    if (screenEditorState.saving) {
+      screenEditorState.queued = true;
+      return;
+    }
+
+    await saveScreensConfigNow(reason);
+
+    if (screenEditorState.queued) {
+      screenEditorState.queued = false;
+      scheduleScreenEditorAutosave('queued-edit');
+    }
+  }, 700);
+}
+
+function attachHotspotEditorBehavior(overlayEl, hotspotEl, hotspot) {
+  const handle = hotspotEl.querySelector('.screen-editor-hotspot-handle');
+  let mode = null;
+  let startX = 0;
+  let startY = 0;
+  let startHotspot = null;
+
+  const onMove = (event) => {
+    if (!mode) return;
+
+    const rect = overlayEl.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const dX = (event.clientX - startX) / rect.width;
+    const dY = (event.clientY - startY) / rect.height;
+
+    if (mode === 'move') {
+      hotspot.x = clamp01(startHotspot.x + dX);
+      hotspot.y = clamp01(startHotspot.y + dY);
+    } else {
+      hotspot.w = clamp01(startHotspot.w + dX);
+      hotspot.h = clamp01(startHotspot.h + dY);
+    }
+
+    updateScreenEditorHotspotVisual(hotspotEl, hotspot);
+    event.preventDefault();
+  };
+
+  const onUp = (event) => {
+    if (mode) {
+      scheduleScreenEditorAutosave(mode === 'move' ? 'hotspot-move' : 'hotspot-resize');
+    }
+    mode = null;
+    startHotspot = null;
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    event.preventDefault();
+  };
+
+  hotspotEl.addEventListener('pointerdown', (event) => {
+    if (event.target === handle) return;
+    mode = 'move';
+    startX = event.clientX;
+    startY = event.clientY;
+    startHotspot = { x: hotspot.x, y: hotspot.y, w: hotspot.w, h: hotspot.h };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    event.preventDefault();
+    event.stopPropagation();
+  });
+
+  if (handle) {
+    handle.addEventListener('pointerdown', (event) => {
+      mode = 'resize';
+      startX = event.clientX;
+      startY = event.clientY;
+      startHotspot = { x: hotspot.x, y: hotspot.y, w: hotspot.w, h: hotspot.h };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      event.preventDefault();
+      event.stopPropagation();
+    });
+  }
+}
+
+function renderScreenEditorStage() {
+  const stageEl = document.getElementById('screenEditorStage');
+  const { data, cfg, currentScreenId } = screenEditorState;
+  if (!stageEl || !data || !cfg || !currentScreenId) return;
+
+  const screenCfg = data.screens[currentScreenId];
+  if (!screenCfg) return;
+
+  stageEl.innerHTML = '';
+
+  const image = document.createElement('img');
+  image.className = 'screen-editor-image';
+  image.alt = currentScreenId;
+  image.src = getScreenBgUrl(cfg.installSlug, screenCfg.bg, currentScreenId);
+  image.draggable = false;
+
+  image.addEventListener('error', () => {
+    setScreenEditorStatus(`Bakgrunn mangler for ${currentScreenId}`, 'error');
+  });
+
+  const overlay = document.createElement('div');
+  overlay.className = 'screen-editor-overlay';
+
+  (screenCfg.hotspots || []).forEach((hotspot) => {
+    const hotspotEl = document.createElement('div');
+    hotspotEl.className = 'screen-editor-hotspot';
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'screen-editor-hotspot-label';
+    hotspotEl.appendChild(labelEl);
+
+    const handleEl = document.createElement('div');
+    handleEl.className = 'screen-editor-hotspot-handle';
+    hotspotEl.appendChild(handleEl);
+
+    updateScreenEditorHotspotVisual(hotspotEl, hotspot);
+    attachHotspotEditorBehavior(overlay, hotspotEl, hotspot);
+    overlay.appendChild(hotspotEl);
+  });
+
+  stageEl.appendChild(image);
+  stageEl.appendChild(overlay);
+}
+
+async function initScreenEditor(supabase, cfg) {
+  const selectEl = document.getElementById('screenEditorSelect');
+  const reloadBtn = document.getElementById('screenEditorReloadBtn');
+  const saveBtn = document.getElementById('screenEditorSaveBtn');
+  const stageEl = document.getElementById('screenEditorStage');
+
+  if (!selectEl || !reloadBtn || !saveBtn || !stageEl) return;
+
+  screenEditorState.supabase = supabase;
+  screenEditorState.cfg = cfg;
+
+  setScreenEditorStatus('Laster screens.json…', 'warn');
+  const ok = await loadScreensConfigForEditor();
+  if (!ok) return;
+
+  renderScreenEditorSelect();
+  renderScreenEditorStage();
+  setScreenEditorStatus('✅ Klar – dra hotspots for å redigere', 'ok');
+
+  selectEl.addEventListener('change', () => {
+    screenEditorState.currentScreenId = selectEl.value;
+    renderScreenEditorStage();
+    setScreenEditorStatus(`Viser ${selectEl.value}`, 'ok');
+  });
+
+  reloadBtn.addEventListener('click', async () => {
+    setScreenEditorStatus('Laster på nytt…', 'warn');
+    const loaded = await loadScreensConfigForEditor();
+    if (!loaded) return;
+    renderScreenEditorSelect();
+    renderScreenEditorStage();
+    setScreenEditorStatus('✅ Lastet på nytt', 'ok');
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    await saveScreensConfigNow('manual-save');
+  });
 }

@@ -240,6 +240,11 @@ function cloneJson(value) {
 const SCREENS_DEFAULT = cloneJson(SCREENS);
 const SCREEN_ORDER_DEFAULT = [...SCREEN_ORDER];
 let screensConfigSource = 'hardcoded';
+const SCREENS_CONFIG_FILE = 'screens.json';
+const SCREENS_AUTOSAVE_DELAY_MS = 700;
+let screensAutosaveTimer = null;
+let screensSaveInFlight = false;
+let screensSaveQueued = false;
 
 function resolveScreenBackground(rawBg, screenId) {
   if (typeof rawBg !== 'string' || !rawBg.trim()) {
@@ -335,6 +340,118 @@ function resetToDefaultScreensConfig() {
   applyScreensConfig(cloneJson(SCREENS_DEFAULT), [...SCREEN_ORDER_DEFAULT], 'hardcoded');
 }
 
+function toPersistedScreenBg(bg) {
+  if (typeof bg !== 'string' || !bg.trim()) return '';
+  const value = bg.trim();
+  const screenPrefix = `${SCREEN_ASSETS}/`;
+  if (value.startsWith(screenPrefix)) {
+    return value.slice(screenPrefix.length);
+  }
+  return value;
+}
+
+function buildScreensConfigPayload() {
+  const screens = {};
+
+  Object.entries(SCREENS).forEach(([screenId, cfg]) => {
+    const hotspots = Array.isArray(cfg.hotspots)
+      ? cfg.hotspots.map((h) => ({
+          id: String(h.id || ''),
+          x: Math.round(Number(h.x || 0) * 1000) / 1000,
+          y: Math.round(Number(h.y || 0) * 1000) / 1000,
+          w: Math.round(Number(h.w || 0) * 1000) / 1000,
+          h: Math.round(Number(h.h || 0) * 1000) / 1000,
+          ...(h.go && { go: String(h.go) }),
+          ...(h.label && { label: String(h.label) }),
+          ...(h.storeId && { storeId: String(h.storeId) }),
+        }))
+      : [];
+
+    const pulses = Array.isArray(cfg.pulses)
+      ? cfg.pulses.map((p) => ({
+          id: String(p.id || ''),
+          x: Math.round(Number(p.x || 0) * 1000) / 1000,
+          y: Math.round(Number(p.y || 0) * 1000) / 1000,
+        }))
+      : [];
+
+    screens[screenId] = {
+      bg: toPersistedScreenBg(cfg.bg),
+      hotspots,
+      pulses,
+    };
+  });
+
+  return {
+    screenOrder: [...SCREEN_ORDER],
+    screens,
+  };
+}
+
+async function saveScreensConfigToSupabase(reason = 'manual') {
+  const supabase = getSupabase();
+  if (!supabase || typeof window.getSupabaseConfig !== 'function') {
+    console.warn('[SCREENS] save skipped (Supabase not ready)');
+    return false;
+  }
+
+  const cfg = window.getSupabaseConfig();
+  if (!cfg || !cfg.bucket || !cfg.installSlug) {
+    console.warn('[SCREENS] save skipped (invalid Supabase config)');
+    return false;
+  }
+
+  const filePath = `installs/${cfg.installSlug}/config/${SCREENS_CONFIG_FILE}`;
+  const payload = buildScreensConfigPayload();
+  const body = JSON.stringify(payload, null, 2);
+
+  screensSaveInFlight = true;
+  try {
+    const { error } = await supabase.storage
+      .from(cfg.bucket)
+      .update(filePath, new Blob([body], { type: 'application/json' }), { upsert: true });
+
+    if (error) {
+      console.warn('[SCREENS] autosave failed:', error.message || error);
+      return false;
+    }
+
+    screensConfigSource = 'supabase';
+    console.log(`[SCREENS] saved (${reason}) → ${filePath}`);
+    updateAdminStatus();
+    return true;
+  } catch (e) {
+    console.warn('[SCREENS] autosave exception:', e?.message || e);
+    return false;
+  } finally {
+    screensSaveInFlight = false;
+  }
+}
+
+function queueScreensAutosave(reason = 'edit') {
+  if (!DEBUG) return;
+
+  if (screensAutosaveTimer) {
+    clearTimeout(screensAutosaveTimer);
+  }
+
+  screensAutosaveTimer = setTimeout(async () => {
+    screensAutosaveTimer = null;
+
+    if (screensSaveInFlight) {
+      screensSaveQueued = true;
+      return;
+    }
+
+    await saveScreensConfigToSupabase(reason);
+
+    if (screensSaveQueued) {
+      screensSaveQueued = false;
+      queueScreensAutosave('queued-edit');
+    }
+  }, SCREENS_AUTOSAVE_DELAY_MS);
+}
+
 async function loadScreensConfigFromSupabase() {
   const supabase = getSupabase();
   if (!supabase || typeof window.getSupabaseConfig !== 'function') {
@@ -349,7 +466,7 @@ async function loadScreensConfigFromSupabase() {
   }
 
   const folderPath = `installs/${cfg.installSlug}/config`;
-  const fileName = 'screens.json';
+  const fileName = SCREENS_CONFIG_FILE;
   const filePath = `${folderPath}/${fileName}`;
 
   try {
@@ -983,6 +1100,7 @@ function renderHotspotBox(container, hotspot, screenName, hotspotIdx, fit) {
     if (isDragging || isResizing) {
       logHotspotsForScreen(screenName);
       logPulsesForScreen(screenName);
+      queueScreensAutosave('hotspot-edit');
     }
     isDragging = false;
     isResizing = false;
@@ -1052,6 +1170,7 @@ function renderPulseDot(container, pulse, screenName, pulseIdx, fit) {
     if (isDragging) {
       logHotspotsForScreen(screenName);
       logPulsesForScreen(screenName);
+      queueScreensAutosave('pulse-edit');
     }
     isDragging = false;
     dot.classList.remove('dragging');
@@ -1097,7 +1216,8 @@ function logHotspotsForScreen(screenName) {
     w: round3(h.w),
     h: round3(h.h),
     ...(h.go && { go: h.go }),
-    ...(h.label && { label: h.label })
+    ...(h.label && { label: h.label }),
+    ...(h.storeId && { storeId: h.storeId })
   }));
   console.log(`[${screenName}] hotspots =`, JSON.stringify(hs, null, 2));
 }
@@ -1479,6 +1599,15 @@ function openAdminPanel(){
     btnReload.addEventListener('click', ()=>{ pollAdsAndReloadIfChanged(); updateAdminStatus(); });
     adminPanel.appendChild(btnReload);
 
+    const btnSaveScreens = document.createElement('button');
+    btnSaveScreens.textContent = 'Save Screens Now';
+    btnSaveScreens.style.width = '100%'; btnSaveScreens.style.marginBottom = '8px';
+    btnSaveScreens.addEventListener('click', async () => {
+      await saveScreensConfigToSupabase('admin-button');
+      updateAdminStatus();
+    });
+    adminPanel.appendChild(btnSaveScreens);
+
     // Status
     const status = document.createElement('pre');
     status.id = 'adminStatus';
@@ -1512,6 +1641,8 @@ function updateAdminStatus(){
   const st = adminPanel.querySelector('#adminStatus');
   if(!st) return;
   let info = `screen: ${currentScreen}\nDEBUG: ${DEBUG}\nADS: ${ADS.length}`;
+  info += `\nscreens source: ${screensConfigSource}`;
+  info += `\nsave in-flight: ${screensSaveInFlight ? 'yes' : 'no'}`;
   if(DEBUG){
     try{
       const cfg = window.getSupabaseConfig();
@@ -2057,6 +2188,8 @@ window.__kiosk = {
   SCREEN_ORDER,
   setDebugMode,
   loadScreensConfigFromSupabase,
+  saveScreensConfigToSupabase,
+  queueScreensAutosave,
   getScreensConfigSource: () => screensConfigSource,
   openAdmin: () => { toggleAdminPanel(); }
 };

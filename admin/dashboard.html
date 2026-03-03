@@ -144,6 +144,27 @@
             </div>
           </div>
 
+          <!-- Skjermeditor Card -->
+          <div class="card card-full">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title">Skjermeditor</h3>
+                <p class="card-subtitle">Dra hotspots direkte i preview – lagres automatisk</p>
+              </div>
+              <div class="screen-editor-toolbar">
+                <select id="screenEditorSelect" class="screen-editor-select"></select>
+                <button id="screenEditorReloadBtn" class="btn btn-secondary btn-sm" type="button">Last inn på nytt</button>
+                <button id="screenEditorSaveBtn" class="btn btn-primary btn-sm" type="button">Lagre nå</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <p id="screenEditorStatus" class="message">Laster editor…</p>
+              <div id="screenEditorStage" class="screen-editor-stage">
+                <p id="screenEditorEmpty" class="text-muted">Ingen skjerm valgt</p>
+              </div>
+            </div>
+          </div>
+
           <!-- Spilling (Playlist) Card -->
           <div class="card">
             <div class="card-header">
