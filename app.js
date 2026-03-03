@@ -967,6 +967,27 @@ stopAds();
 videoEl.style.display = 'none';
 safeSetBackground(config.bg);
 
+  const ensureMapPulse = (pulseId, x, y) => {
+    if (!Array.isArray(config.pulses)) config.pulses = [];
+    if (config.pulses.some((pulse) => String(pulse?.id || '') === pulseId)) return;
+
+    config.pulses.push({
+      id: pulseId,
+      x: clamp01(x),
+      y: clamp01(y),
+    });
+
+    const pulseIdx = config.pulses.length - 1;
+    const pulseEl = document.createElement('div');
+    pulseEl.className = 'pulse';
+    pulseEl.dataset.pulseIdx = String(pulseIdx);
+    pulseEl.style.position = 'absolute';
+    pulseEl.style.pointerEvents = 'none';
+    pulseEl.style.transform = 'translate(-50%, -50%)';
+    hotspotsEl.appendChild(pulseEl);
+    applyLayout(screenName);
+  };
+
   // create hotspots with data attributes so layout can set px coords
   config.hotspots.forEach((h, i) => {
     const btn = document.createElement('button');
@@ -1001,6 +1022,10 @@ safeSetBackground(config.bg);
       ev.preventDefault();
 
       resetIdleTimer();
+
+      if (screenName === 'map1' && h.id === 'minibank') {
+        ensureMapPulse('minibank_pulse', 0.444, 0.543);
+      }
 
       if (h.go) {
         if (!SCREENS[h.go]) {
