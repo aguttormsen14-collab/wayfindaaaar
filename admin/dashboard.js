@@ -480,25 +480,44 @@ async function loadScreensConfigForEditor() {
   const { supabase, cfg } = screenEditorState;
   const path = screensConfigPath(cfg.installSlug);
 
-  try {
-    const { data, error } = await supabase.storage.from(cfg.bucket).download(path);
-    if (error || !data) {
-      setScreenEditorStatus('Fant ikke screens.json i Storage for denne installasjonen', 'error');
-      return false;
-    }
-
-    const text = await data.text();
-    const parsed = JSON.parse(text);
-
+  const acceptConfig = (parsed) => {
     if (!parsed || typeof parsed !== 'object' || !parsed.screens || !parsed.screenOrder) {
-      setScreenEditorStatus('Ugyldig screens.json format', 'error');
       return false;
     }
-
     screenEditorState.data = parsed;
     const firstScreen = parsed.screenOrder.find((id) => parsed.screens[id]);
     screenEditorState.currentScreenId = firstScreen || null;
     return true;
+  };
+
+  try {
+    const { data, error } = await supabase.storage.from(cfg.bucket).download(path);
+    if (!error && data) {
+      const text = await data.text();
+      const parsed = JSON.parse(text);
+      if (!acceptConfig(parsed)) {
+        setScreenEditorStatus('Ugyldig screens.json format i Storage', 'error');
+        return false;
+      }
+      return true;
+    }
+
+    const localSeedPath = withBase(`installs/${cfg.installSlug}/config/screens.json`);
+    try {
+      const seedRes = await fetch(localSeedPath, { cache: 'no-store' });
+      if (seedRes.ok) {
+        const seedParsed = await seedRes.json();
+        if (acceptConfig(seedParsed)) {
+          setScreenEditorStatus('Fant ikke screens.json i Storage. Bruker lokal seed – trykk «Lagre nå» for å opprette.', 'warn');
+          return true;
+        }
+      }
+    } catch (seedErr) {
+      console.warn('[SCREEN EDITOR] Local seed load failed:', seedErr);
+    }
+
+    setScreenEditorStatus(`Fant ikke screens.json i Storage (${error?.message || 'ukjent feil'})`, 'error');
+    return false;
   } catch (e) {
     console.error('[SCREEN EDITOR] Load failed:', e);
     setScreenEditorStatus('Feil ved lasting av screens.json', 'error');
