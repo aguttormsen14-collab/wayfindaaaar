@@ -509,6 +509,7 @@ const screenEditorState = {
   autosaveTimer: null,
   saving: false,
   queued: false,
+  popupDesignerInitialized: false,
 };
 
 function editorStatusClass(type) {
@@ -744,6 +745,196 @@ function updateHotspotActionFieldVisibility() {
   navigateFieldsEl.classList.toggle('hidden', action !== 'navigate');
 }
 
+function sanitizePopupLayout(layout) {
+  const logo = layout && typeof layout.logo === 'object' ? layout.logo : {};
+  const text = layout && typeof layout.text === 'object' ? layout.text : {};
+  return {
+    logo: {
+      x: clamp01(Number(logo.x ?? 0.78)),
+      y: clamp01(Number(logo.y ?? 0.06)),
+    },
+    text: {
+      x: clamp01(Number(text.x ?? 0.06)),
+      y: clamp01(Number(text.y ?? 0.08)),
+    },
+  };
+}
+
+function ensurePopupConfig(hotspot) {
+  if (!hotspot || typeof hotspot !== 'object') return null;
+  if (!hotspot.popup || typeof hotspot.popup !== 'object') {
+    hotspot.popup = { enabled: true };
+  }
+  hotspot.popup.enabled = hotspot.popup.enabled !== false;
+  hotspot.popup.layout = sanitizePopupLayout(hotspot.popup.layout);
+  return hotspot.popup;
+}
+
+function getPopupAssetUrlForEditor(rawPath) {
+  if (typeof rawPath !== 'string' || !rawPath.trim()) return '';
+  const path = rawPath.trim();
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('/')) {
+    return path;
+  }
+  if (path.startsWith('installs/')) {
+    return withBase(path);
+  }
+  if (path.startsWith('assets/')) {
+    return withBase(`installs/${screenEditorState.cfg.installSlug}/${path}`);
+  }
+  if (path.startsWith('stores/')) {
+    return withBase(`installs/${screenEditorState.cfg.installSlug}/assets/${path}`);
+  }
+  return withBase(`installs/${screenEditorState.cfg.installSlug}/assets/stores/${path}`);
+}
+
+function renderPopupDesignerPreview(hotspot) {
+  const previewImageEl = document.getElementById('screenEditorPopupPreviewImage');
+  const previewLogoEl = document.getElementById('screenEditorPopupPreviewLogo');
+  const previewTextEl = document.getElementById('screenEditorPopupPreviewText');
+  const previewTitleEl = document.getElementById('screenEditorPopupPreviewTitle');
+  const previewBodyEl = document.getElementById('screenEditorPopupPreviewBody');
+  const imageDropEl = document.getElementById('screenEditorPopupImageDrop');
+  const logoDropEl = document.getElementById('screenEditorPopupLogoDrop');
+
+  if (!previewImageEl || !previewLogoEl || !previewTextEl || !previewTitleEl || !previewBodyEl) return;
+
+  const popup = hotspot ? ensurePopupConfig(hotspot) : null;
+  const layout = popup ? popup.layout : sanitizePopupLayout(null);
+
+  const title = (popup?.title || '').trim() || 'Popup tittel';
+  const text = (popup?.text || '').trim() || 'Popup tekst';
+  previewTitleEl.textContent = title;
+  previewBodyEl.textContent = text;
+
+  const imageUrl = popup?.imagePath ? getPopupAssetUrlForEditor(popup.imagePath) : '';
+  if (imageUrl) {
+    previewImageEl.src = imageUrl;
+    previewImageEl.style.display = 'block';
+  } else {
+    previewImageEl.removeAttribute('src');
+    previewImageEl.style.display = 'none';
+  }
+
+  const logoUrl = popup?.logoPath ? getPopupAssetUrlForEditor(popup.logoPath) : '';
+  if (logoUrl) {
+    previewLogoEl.src = logoUrl;
+    previewLogoEl.style.display = 'block';
+  } else {
+    previewLogoEl.removeAttribute('src');
+    previewLogoEl.style.display = 'none';
+  }
+
+  previewLogoEl.style.left = `${layout.logo.x * 100}%`;
+  previewLogoEl.style.top = `${layout.logo.y * 100}%`;
+  previewTextEl.style.left = `${layout.text.x * 100}%`;
+  previewTextEl.style.top = `${layout.text.y * 100}%`;
+
+  if (imageDropEl) {
+    imageDropEl.textContent = popup?.imagePath ? `Popup-bilde: ${popup.imagePath}` : 'Dra bilde hit eller klikk for å laste opp';
+  }
+  if (logoDropEl) {
+    logoDropEl.textContent = popup?.logoPath ? `Logo: ${popup.logoPath}` : 'Dra logo hit eller klikk for å laste opp';
+  }
+}
+
+async function uploadPopupAssetForSelectedHotspot(kind, file) {
+  const hotspot = getSelectedHotspot();
+  if (!hotspot) {
+    setScreenEditorStatus('Velg en hotspot i preview først', 'warn');
+    return;
+  }
+
+  const actionEl = document.getElementById('screenEditorHotspotAction');
+  if ((actionEl?.value || 'none') !== 'popup') {
+    setScreenEditorStatus('Velg handling "Popup" før opplasting', 'warn');
+    return;
+  }
+
+  if (!file) return;
+
+  const storeIdEl = document.getElementById('screenEditorStoreId');
+  const storeId = (storeIdEl?.value || hotspot.storeId || '').trim();
+  if (!storeId) {
+    setScreenEditorStatus('Legg inn Butikk-ID før opplasting', 'warn');
+    return;
+  }
+
+  const extMatch = String(file.name || '').toLowerCase().match(/\.(webp|png|jpe?g|svg)$/i);
+  const ext = extMatch ? extMatch[0] : '.png';
+  const baseName = kind === 'logo' ? 'logo' : 'popup';
+  const fileName = `${baseName}${ext}`;
+  const storagePath = `installs/${screenEditorState.cfg.installSlug}/assets/stores/${storeId}/${fileName}`;
+
+  setScreenEditorStatus(`Laster opp ${fileName}…`, 'warn');
+
+  const { error } = await screenEditorState.supabase.storage
+    .from(screenEditorState.cfg.bucket)
+    .upload(storagePath, file, { upsert: true, contentType: file.type || undefined });
+
+  if (error) {
+    setScreenEditorStatus(`Opplasting feilet: ${error.message || 'ukjent feil'}`, 'error');
+    return;
+  }
+
+  hotspot.storeId = storeId;
+  const popup = ensurePopupConfig(hotspot);
+  const configPath = `assets/stores/${storeId}/${fileName}`;
+  if (kind === 'logo') {
+    popup.logoPath = configPath;
+  } else {
+    popup.imagePath = configPath;
+  }
+
+  renderSelectedHotspotPanel();
+  scheduleScreenEditorAutosave(`popup-upload-${kind}`);
+  setScreenEditorStatus(`✅ Lastet opp ${fileName}`, 'ok');
+}
+
+function bindPopupPreviewDrag(element, part) {
+  if (!element) return;
+  element.dataset.popupDragBound = '1';
+
+  element.addEventListener('pointerdown', (event) => {
+    const hotspot = getSelectedHotspot();
+    if (!hotspot) return;
+
+    const popup = ensurePopupConfig(hotspot);
+    const previewEl = document.getElementById('screenEditorPopupPreview');
+    if (!previewEl) return;
+
+    const rect = previewEl.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    const offsetX = event.clientX - rect.left - (popup.layout[part].x * rect.width);
+    const offsetY = event.clientY - rect.top - (popup.layout[part].y * rect.height);
+    element.classList.add('dragging');
+
+    const onMove = (moveEvent) => {
+      const x = clamp01((moveEvent.clientX - rect.left - offsetX) / rect.width);
+      const y = clamp01((moveEvent.clientY - rect.top - offsetY) / rect.height);
+      popup.layout[part].x = x;
+      popup.layout[part].y = y;
+      element.style.left = `${x * 100}%`;
+      element.style.top = `${y * 100}%`;
+      moveEvent.preventDefault();
+    };
+
+    const onUp = (upEvent) => {
+      element.classList.remove('dragging');
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      scheduleScreenEditorAutosave(`popup-layout-${part}`);
+      upEvent.preventDefault();
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    event.preventDefault();
+    event.stopPropagation();
+  });
+}
+
 function renderSelectedHotspotPanel() {
   const panelEl = document.getElementById('screenEditorHotspotPanel');
   const nameEl = document.getElementById('screenEditorHotspotName');
@@ -760,6 +951,7 @@ function renderSelectedHotspotPanel() {
 
   if (!hotspot) {
     panelEl.classList.add('hidden');
+    renderPopupDesignerPreview(null);
     return;
   }
 
@@ -779,6 +971,7 @@ function renderSelectedHotspotPanel() {
     hotspotGoTargetEl.value = hotspot.go;
   }
   updateHotspotActionFieldVisibility();
+  renderPopupDesignerPreview(hotspot);
 }
 
 function updateScreenEditorPulseVisual(element, pulse) {
@@ -1018,6 +1211,7 @@ function addHotspotAtPosition({ x, y, mode = 'none' }) {
       enabled: true,
       title: 'Ny popup',
       text: 'Legg inn butikkinfo her',
+      layout: sanitizePopupLayout(null),
     };
   }
 
@@ -1173,6 +1367,12 @@ function bindHotspotPanelEvents() {
   const storeIdEl = document.getElementById('screenEditorStoreId');
   const popupTitleEl = document.getElementById('screenEditorPopupTitle');
   const popupTextEl = document.getElementById('screenEditorPopupText');
+  const popupImageDropEl = document.getElementById('screenEditorPopupImageDrop');
+  const popupImageInputEl = document.getElementById('screenEditorPopupImageInput');
+  const popupLogoDropEl = document.getElementById('screenEditorPopupLogoDrop');
+  const popupLogoInputEl = document.getElementById('screenEditorPopupLogoInput');
+  const popupPreviewLogoEl = document.getElementById('screenEditorPopupPreviewLogo');
+  const popupPreviewTextEl = document.getElementById('screenEditorPopupPreviewText');
 
   if (!nameEl || !actionEl || !hotspotGoTargetEl || !storeIdEl || !popupTitleEl || !popupTextEl) return;
 
@@ -1190,7 +1390,9 @@ function bindHotspotPanelEvents() {
     } else if (action === 'popup') {
       delete hotspot.go;
       hotspot.storeId = storeIdEl.value.trim() || undefined;
+      const popup = ensurePopupConfig(hotspot);
       hotspot.popup = {
+        ...popup,
         enabled: true,
         ...(popupTitleEl.value.trim() && { title: popupTitleEl.value.trim() }),
         ...(popupTextEl.value.trim() && { text: popupTextEl.value.trim() }),
@@ -1217,6 +1419,47 @@ function bindHotspotPanelEvents() {
   storeIdEl.addEventListener('input', () => applyChanges('hotspot-storeid'));
   popupTitleEl.addEventListener('input', () => applyChanges('hotspot-popup-title'));
   popupTextEl.addEventListener('input', () => applyChanges('hotspot-popup-text'));
+
+  if (!screenEditorState.popupDesignerInitialized) {
+    bindPopupPreviewDrag(popupPreviewLogoEl, 'logo');
+    bindPopupPreviewDrag(popupPreviewTextEl, 'text');
+
+    const wireUpload = (dropEl, inputEl, kind) => {
+      if (!dropEl || !inputEl) return;
+
+      dropEl.addEventListener('click', () => inputEl.click());
+
+      inputEl.addEventListener('change', async () => {
+        const file = inputEl.files?.[0];
+        if (file) {
+          await uploadPopupAssetForSelectedHotspot(kind, file);
+        }
+        inputEl.value = '';
+      });
+
+      dropEl.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        dropEl.classList.add('drag-over');
+      });
+
+      dropEl.addEventListener('dragleave', () => {
+        dropEl.classList.remove('drag-over');
+      });
+
+      dropEl.addEventListener('drop', async (event) => {
+        event.preventDefault();
+        dropEl.classList.remove('drag-over');
+        const file = event.dataTransfer?.files?.[0];
+        if (file) {
+          await uploadPopupAssetForSelectedHotspot(kind, file);
+        }
+      });
+    };
+
+    wireUpload(popupImageDropEl, popupImageInputEl, 'popup');
+    wireUpload(popupLogoDropEl, popupLogoInputEl, 'logo');
+    screenEditorState.popupDesignerInitialized = true;
+  }
 }
 
 function addPulseToCurrentScreen({ followSelectedHotspot = false } = {}) {

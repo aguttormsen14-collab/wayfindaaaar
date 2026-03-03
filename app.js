@@ -280,6 +280,24 @@ function normalizeScreenItem(screenId, item) {
                 enabled: hotspot.popup.enabled !== false,
                 ...(hotspot.popup.title ? { title: String(hotspot.popup.title) } : {}),
                 ...(hotspot.popup.text ? { text: String(hotspot.popup.text) } : {}),
+                ...(hotspot.popup.imagePath ? { imagePath: String(hotspot.popup.imagePath) } : {}),
+                ...(hotspot.popup.logoPath ? { logoPath: String(hotspot.popup.logoPath) } : {}),
+                ...(hotspot.popup.layout && typeof hotspot.popup.layout === 'object' ? {
+                  layout: {
+                    ...(hotspot.popup.layout.logo && typeof hotspot.popup.layout.logo === 'object' ? {
+                      logo: {
+                        ...(Number.isFinite(Number(hotspot.popup.layout.logo.x)) ? { x: Number(hotspot.popup.layout.logo.x) } : {}),
+                        ...(Number.isFinite(Number(hotspot.popup.layout.logo.y)) ? { y: Number(hotspot.popup.layout.logo.y) } : {}),
+                      },
+                    } : {}),
+                    ...(hotspot.popup.layout.text && typeof hotspot.popup.layout.text === 'object' ? {
+                      text: {
+                        ...(Number.isFinite(Number(hotspot.popup.layout.text.x)) ? { x: Number(hotspot.popup.layout.text.x) } : {}),
+                        ...(Number.isFinite(Number(hotspot.popup.layout.text.y)) ? { y: Number(hotspot.popup.layout.text.y) } : {}),
+                      },
+                    } : {}),
+                  },
+                } : {}),
               }
             : undefined,
         }))
@@ -376,6 +394,24 @@ function buildScreensConfigPayload() {
               enabled: h.popup.enabled !== false,
               ...(h.popup.title && { title: String(h.popup.title) }),
               ...(h.popup.text && { text: String(h.popup.text) }),
+              ...(h.popup.imagePath && { imagePath: String(h.popup.imagePath) }),
+              ...(h.popup.logoPath && { logoPath: String(h.popup.logoPath) }),
+              ...(h.popup.layout && typeof h.popup.layout === 'object' && {
+                layout: {
+                  ...(h.popup.layout.logo && typeof h.popup.layout.logo === 'object' && {
+                    logo: {
+                      ...(Number.isFinite(Number(h.popup.layout.logo.x)) && { x: Math.round(Number(h.popup.layout.logo.x) * 1000) / 1000 }),
+                      ...(Number.isFinite(Number(h.popup.layout.logo.y)) && { y: Math.round(Number(h.popup.layout.logo.y) * 1000) / 1000 }),
+                    },
+                  }),
+                  ...(h.popup.layout.text && typeof h.popup.layout.text === 'object' && {
+                    text: {
+                      ...(Number.isFinite(Number(h.popup.layout.text.x)) && { x: Math.round(Number(h.popup.layout.text.x) * 1000) / 1000 }),
+                      ...(Number.isFinite(Number(h.popup.layout.text.y)) && { y: Math.round(Number(h.popup.layout.text.y) * 1000) / 1000 }),
+                    },
+                  }),
+                },
+              }),
             }
           }),
         }))
@@ -928,7 +964,10 @@ safeSetBackground(config.bg);
         openStorePopup({
           storeId: h.storeId,
           title: h.popup?.title || h.label,
-          text: h.popup?.text || ''
+          text: h.popup?.text || '',
+          imagePath: h.popup?.imagePath,
+          logoPath: h.popup?.logoPath,
+          layout: h.popup?.layout,
         });
         // Stop ads timer while viewing popup
         stopIdleToAdsTimer();
@@ -1273,31 +1312,60 @@ async function openStorePopup(input){
   const popupTitle = popupCfg.title ? escapeHtml(popupCfg.title) : '';
   const popupText = popupCfg.text ? escapeHtml(popupCfg.text) : '';
 
+  const resolveAssetUrl = (rawPath) => {
+    if (!rawPath || typeof rawPath !== 'string') return null;
+    const path = rawPath.trim();
+    if (!path) return null;
+    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('/')) return path;
+    if (path.startsWith('installs/')) return withBase(path);
+    if (path.startsWith('assets/')) return `${BASE_ASSETS}/${path.slice('assets/'.length)}`;
+    if (path.startsWith('stores/')) return `${BASE_ASSETS}/${path}`;
+    return `${STORES_ASSETS}/${path}`;
+  };
+
+  const layout = {
+    logo: {
+      x: clamp01(Number(popupCfg.layout?.logo?.x ?? 0.78)),
+      y: clamp01(Number(popupCfg.layout?.logo?.y ?? 0.06)),
+    },
+    text: {
+      x: clamp01(Number(popupCfg.layout?.text?.x ?? 0.06)),
+      y: clamp01(Number(popupCfg.layout?.text?.y ?? 0.08)),
+    },
+  };
+
   // prøver i denne rekkefølgen (webp først, så png/jpg)
   const exts = ['.webp', '.png', '.jpg', '.jpeg'];
-  let foundUrl = null;
+  let foundUrl = resolveAssetUrl(popupCfg.imagePath);
+  let logoUrl = resolveAssetUrl(popupCfg.logoPath);
 
-  if (storeId) {
-    for(const ext of exts){
-      const url = `${STORES_ASSETS}/${storeId}/popup${ext}`;
-      try{
-        // HEAD kan være blokkert noen steder -> bruk GET med Range fallback
+  const findStoreAsset = async (baseName) => {
+    if (!storeId) return null;
+    for (const ext of exts) {
+      const url = `${STORES_ASSETS}/${storeId}/${baseName}${ext}`;
+      try {
         const head = await fetch(url, { method:'HEAD', cache:'no-store' });
-        if(head.ok){ foundUrl = url; break; }
-
+        if (head.ok) return url;
         const get = await fetch(url, {
           method:'GET',
           headers: { Range: 'bytes=0-0' },
           cache:'no-store'
         });
-        if(get.ok){ foundUrl = url; break; }
-      }catch(e){
-        // ignorer og prøv neste ext
+        if (get.ok) return url;
+      } catch (e) {
       }
     }
+    return null;
+  };
+
+  if (!foundUrl) {
+    foundUrl = await findStoreAsset('popup');
+  }
+  if (!logoUrl) {
+    logoUrl = await findStoreAsset('logo');
   }
 
-  if(!foundUrl && !popupTitle && !popupText){
+  if(!foundUrl && !logoUrl && !popupTitle && !popupText){
     body.innerHTML = `
       <div style="color:#fff; font-family:sans-serif;">
         Fant ikke popup-data for <b>${escapeHtml(storeId || 'ukjent butikk')}</b>.<br>
@@ -1308,9 +1376,9 @@ async function openStorePopup(input){
   } else {
     const infoHtml = (popupTitle || popupText)
       ? `
-        <div style="padding: 0 0 16px 0; color:#111827; font-family: sans-serif;">
+        <div style="position:absolute;left:${layout.text.x * 100}%;top:${layout.text.y * 100}%;max-width:62%;padding:12px 14px;border-radius:12px;background:rgba(15,23,42,.68);border:1px solid rgba(148,163,184,.4);backdrop-filter: blur(2px);color:#fff;font-family:sans-serif;">
           ${popupTitle ? `<h2 style="font-size:28px;line-height:1.15;margin:0 0 10px 0;font-weight:800;">${popupTitle}</h2>` : ''}
-          ${popupText ? `<p style="font-size:22px;line-height:1.4;margin:0;color:#374151;">${popupText}</p>` : ''}
+          ${popupText ? `<p style="font-size:22px;line-height:1.35;margin:0;color:#e2e8f0;">${popupText}</p>` : ''}
         </div>
       `
       : '';
@@ -1320,16 +1388,28 @@ async function openStorePopup(input){
         <img
           src="${foundUrl}"
           alt="${escapeHtml(storeId || popupCfg.title || 'butikk')}"
-          style="width:100%;height:auto;display:block;border-radius:12px;"
+          style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;"
+          onerror="this.remove()"
+        >
+      `
+      : '';
+
+    const logoHtml = logoUrl
+      ? `
+        <img
+          src="${logoUrl}"
+          alt="${escapeHtml(storeId || popupCfg.title || 'logo')}"
+          style="position:absolute;left:${layout.logo.x * 100}%;top:${layout.logo.y * 100}%;width:100px;height:100px;object-fit:contain;display:block;"
           onerror="this.remove()"
         >
       `
       : '';
 
     body.innerHTML = `
-      <div style="background:#ffffff; border-radius:12px; padding:16px;">
-        ${infoHtml}
+      <div style="position:relative;background:#0b1220;border-radius:14px;overflow:hidden;min-height:min(70vh,760px);padding:0;">
         ${imageHtml}
+        ${logoHtml}
+        ${infoHtml}
       </div>
     `;
   }

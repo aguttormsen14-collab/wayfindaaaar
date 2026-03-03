@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Saxvik Admin Dashboard</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b4f8a'/%3E%3Ctext x='50%25' y='56%25' text-anchor='middle' font-size='34' fill='white' font-family='Arial,sans-serif'%3ES%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="dashboard.css?v=207" />
+  <link rel="stylesheet" href="dashboard.css?v=208" />
 </head>
 
 <body>
@@ -290,6 +290,31 @@
 
                   <label class="form-label" for="screenEditorPopupText">Popup tekst</label>
                   <textarea id="screenEditorPopupText" class="screen-editor-input screen-editor-textarea" rows="3" placeholder="Kort butikkinfo…"></textarea>
+
+                  <div class="popup-upload-grid">
+                    <div>
+                      <label class="form-label">Popup-bilde</label>
+                      <div id="screenEditorPopupImageDrop" class="popup-upload-drop" data-upload-kind="popup">Dra bilde hit eller klikk for å laste opp</div>
+                      <input id="screenEditorPopupImageInput" type="file" accept="image/*" class="hidden" />
+                    </div>
+                    <div>
+                      <label class="form-label">Logo</label>
+                      <div id="screenEditorPopupLogoDrop" class="popup-upload-drop" data-upload-kind="logo">Dra logo hit eller klikk for å laste opp</div>
+                      <input id="screenEditorPopupLogoInput" type="file" accept="image/*" class="hidden" />
+                    </div>
+                  </div>
+
+                  <div class="popup-preview-wrap">
+                    <div id="screenEditorPopupPreview" class="popup-preview-canvas">
+                      <img id="screenEditorPopupPreviewImage" class="popup-preview-image" alt="Popup-bilde" />
+                      <img id="screenEditorPopupPreviewLogo" class="popup-preview-logo" alt="Logo" />
+                      <div id="screenEditorPopupPreviewText" class="popup-preview-text">
+                        <h5 id="screenEditorPopupPreviewTitle">Popup tittel</h5>
+                        <p id="screenEditorPopupPreviewBody">Popup tekst</p>
+                      </div>
+                    </div>
+                    <p class="message">Tips: Dra logo og tekst i preview for å plassere dem slik du vil.</p>
+                  </div>
                 </div>
               </div>
             </div>
