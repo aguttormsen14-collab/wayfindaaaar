@@ -1,0 +1,47 @@
+-- ============================================
+-- Supabase RLS Policies for screens.json
+-- USE THE UI METHOD BELOW (NOT THIS SQL)
+-- ============================================
+
+-- NOTE: Use Supabase Storage Policies UI instead of SQL
+-- This file is kept for reference only
+
+-- ============================================
+-- HOW TO FIX: USE SUPABASE UI (EASIER)
+-- ============================================
+
+-- 1. Go to supabase.com and log in
+-- 2. Open your Saxvik Hub project
+-- 3. Go to STORAGE (left sidebar) → saxvik-hub bucket
+-- 4. Click "Policies" tab (near the top)
+-- 5. Click "New Policy" → "For SELECT (read)"
+--    - Policy name: "Allow users to read own install screens"
+--    - Under "As": select "Authenticated user"
+--    - Click "Add new condition" and set:
+--      * Column: "name"
+--      * Operator: "starts with"
+--      * Value: "installs/" + (your install slug) + "/config/screens.json"
+--      Example: "installs/amfi-steinkjer/config/screens.json"
+--    - Click "Create policy"
+--
+-- 6. Click "New Policy" → "For INSERT (create)"
+--    - Policy name: "Allow users to insert own install screens"
+--    - Under "As": select "Authenticated user"
+--    - Same condition as above
+--    - Click "Create policy"
+--
+-- 7. Click "New Policy" → "For UPDATE (modify)"
+--    - Policy name: "Allow users to update own install screens"
+--    - Under "As": select "Authenticated user"
+--    - Same condition as above
+--    - Click "Create policy"
+--
+-- 8. Go back to dashboard and click "Lagre nå" button
+--
+-- ============================================
+-- TEMPORARY FIX (If you want to test first)
+-- ============================================
+-- 1. Go to Storage → saxvik-hub → Policies
+-- 2. Temporarily click "Allow all" while testing
+-- 3. Once it works, replace with proper policies above
+-- ============================================
