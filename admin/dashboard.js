@@ -1591,35 +1591,9 @@ function renderScreenEditorStage() {
     event.stopPropagation();
   });
 
-  const syncFitRect = () => {
-    const stageRect = stageEl.getBoundingClientRect();
-    const stageW = stageRect.width;
-    const stageH = stageRect.height;
-    const imageW = image.naturalWidth;
-    const imageH = image.naturalHeight;
-    if (!stageW || !stageH || !imageW || !imageH) return;
-
-    const scale = Math.min(stageW / imageW, stageH / imageH);
-    const fitW = Math.max(1, Math.round(imageW * scale));
-    const fitH = Math.max(1, Math.round(imageH * scale));
-    const left = Math.round((stageW - fitW) / 2);
-    const top = Math.round((stageH - fitH) / 2);
-
-    fitEl.style.left = `${left}px`;
-    fitEl.style.top = `${top}px`;
-    fitEl.style.width = `${fitW}px`;
-    fitEl.style.height = `${fitH}px`;
-  };
-
-  image.addEventListener('load', () => {
-    syncFitRect();
-  });
-
   fitEl.appendChild(image);
   fitEl.appendChild(overlay);
   stageEl.appendChild(fitEl);
-
-  requestAnimationFrame(syncFitRect);
   renderSelectedHotspotPanel();
 }
 
