@@ -511,6 +511,20 @@ const screenEditorState = {
   queued: false,
   popupDesignerInitialized: false,
   resizeBound: false,
+  viewportBound: false,
+  viewport: {
+    scale: 1,
+    minScale: 1,
+    maxScale: 3,
+    tx: 0,
+    ty: 0,
+    isPanning: false,
+    panPointerId: null,
+    panStartX: 0,
+    panStartY: 0,
+    startTx: 0,
+    startTy: 0,
+  },
 };
 
 function editorStatusClass(type) {
@@ -1567,6 +1581,7 @@ function renderScreenEditorStage() {
 
   overlay.classList.toggle('click-create', screenEditorState.clickMode !== 'select');
   overlay.addEventListener('pointerdown', (event) => {
+    if (screenEditorState.viewport.isPanning || event.shiftKey) return;
     if (event.target !== overlay) return;
 
     const mode = screenEditorState.clickMode || 'select';
@@ -1593,6 +1608,7 @@ function renderScreenEditorStage() {
   fitEl.appendChild(image);
   fitEl.appendChild(overlay);
   stageEl.appendChild(fitEl);
+  applyScreenEditorViewportTransform();
   renderSelectedHotspotPanel();
 }
 
@@ -1621,6 +1637,7 @@ async function initScreenEditor(supabase, cfg) {
   renderScreenEditorSelect();
   renderScreenEditorTargetSelects();
   updateScreenEditorClickModeUI();
+  bindScreenEditorViewportInteractions();
   renderScreenEditorStage();
   bindHotspotPanelEvents();
   setScreenEditorStatus('✅ Klar – dra hotspots for å redigere', 'ok');
@@ -1629,6 +1646,7 @@ async function initScreenEditor(supabase, cfg) {
     screenEditorState.currentScreenId = selectEl.value;
     screenEditorState.selectedHotspotId = null;
     screenEditorState.selectedPulseId = null;
+    resetScreenEditorViewport();
     renderScreenEditorTargetSelects();
     renderScreenEditorStage();
     setScreenEditorStatus(`Viser ${selectEl.value}`, 'ok');
@@ -1672,6 +1690,7 @@ async function initScreenEditor(supabase, cfg) {
     if (!loaded) return;
     screenEditorState.selectedHotspotId = null;
     screenEditorState.selectedPulseId = null;
+    resetScreenEditorViewport();
     renderScreenEditorSelect();
     renderScreenEditorTargetSelects();
     updateScreenEditorClickModeUI();
@@ -1690,4 +1709,147 @@ async function initScreenEditor(supabase, cfg) {
     });
     screenEditorState.resizeBound = true;
   }
+}
+
+function resetScreenEditorViewport() {
+  screenEditorState.viewport.scale = 1;
+  screenEditorState.viewport.tx = 0;
+  screenEditorState.viewport.ty = 0;
+  screenEditorState.viewport.isPanning = false;
+  screenEditorState.viewport.panPointerId = null;
+}
+
+function getScreenEditorFitElement() {
+  return document.querySelector('#screenEditorStage .screen-editor-fit');
+}
+
+function clampScreenEditorViewport(stageEl, fitEl) {
+  const vp = screenEditorState.viewport;
+  if (!stageEl || !fitEl) return;
+  const stageW = stageEl.clientWidth || 1;
+  const stageH = stageEl.clientHeight || 1;
+  const fitW = fitEl.offsetWidth || 1;
+  const fitH = fitEl.offsetHeight || 1;
+  const scaledW = fitW * vp.scale;
+  const scaledH = fitH * vp.scale;
+  const maxX = Math.max(0, (scaledW - stageW) / 2);
+  const maxY = Math.max(0, (scaledH - stageH) / 2);
+  vp.tx = Math.max(-maxX, Math.min(maxX, vp.tx));
+  vp.ty = Math.max(-maxY, Math.min(maxY, vp.ty));
+}
+
+function applyScreenEditorViewportTransform() {
+  const stageEl = document.getElementById('screenEditorStage');
+  const fitEl = getScreenEditorFitElement();
+  if (!stageEl || !fitEl) return;
+
+  clampScreenEditorViewport(stageEl, fitEl);
+  const vp = screenEditorState.viewport;
+  fitEl.style.transformOrigin = '50% 50%';
+  fitEl.style.transform = `translate(${vp.tx}px, ${vp.ty}px) scale(${vp.scale})`;
+  stageEl.classList.toggle('screen-editor-stage-panning', vp.isPanning);
+}
+
+function setScreenEditorViewportScale(nextScale, anchorClientX, anchorClientY) {
+  const stageEl = document.getElementById('screenEditorStage');
+  const fitEl = getScreenEditorFitElement();
+  if (!stageEl || !fitEl) return;
+
+  const vp = screenEditorState.viewport;
+  const prevScale = vp.scale;
+  const clamped = Math.max(vp.minScale, Math.min(vp.maxScale, nextScale));
+  if (Math.abs(clamped - prevScale) < 0.0001) return;
+
+  const stageRect = stageEl.getBoundingClientRect();
+  const cX = stageRect.width / 2;
+  const cY = stageRect.height / 2;
+  const anchorX = (anchorClientX ?? (stageRect.left + cX)) - stageRect.left;
+  const anchorY = (anchorClientY ?? (stageRect.top + cY)) - stageRect.top;
+
+  const k = clamped / prevScale;
+  const oX = anchorX - cX;
+  const oY = anchorY - cY;
+
+  vp.tx = oX - ((oX - vp.tx) * k);
+  vp.ty = oY - ((oY - vp.ty) * k);
+  vp.scale = clamped;
+
+  if (vp.scale <= 1.0001) {
+    vp.scale = 1;
+    vp.tx = 0;
+    vp.ty = 0;
+  }
+
+  applyScreenEditorViewportTransform();
+}
+
+function bindScreenEditorViewportInteractions() {
+  if (screenEditorState.viewportBound) return;
+
+  const stageEl = document.getElementById('screenEditorStage');
+  const zoomInBtn = document.getElementById('screenEditorZoomInBtn');
+  const zoomOutBtn = document.getElementById('screenEditorZoomOutBtn');
+  const zoomResetBtn = document.getElementById('screenEditorZoomResetBtn');
+  if (!stageEl || !zoomInBtn || !zoomOutBtn || !zoomResetBtn) return;
+
+  stageEl.addEventListener('wheel', (event) => {
+    const fitEl = getScreenEditorFitElement();
+    if (!fitEl || !event.target || !event.target.closest || !event.target.closest('#screenEditorStage')) return;
+    const direction = event.deltaY < 0 ? 1 : -1;
+    const step = 0.12;
+    setScreenEditorViewportScale(screenEditorState.viewport.scale + (direction * step), event.clientX, event.clientY);
+    event.preventDefault();
+  }, { passive: false });
+
+  stageEl.addEventListener('pointerdown', (event) => {
+    const fitEl = getScreenEditorFitElement();
+    if (!fitEl) return;
+    const shouldPan = (event.button === 1 || event.shiftKey) && event.target?.closest('#screenEditorStage');
+    if (!shouldPan || screenEditorState.viewport.scale <= 1.0001) return;
+
+    const vp = screenEditorState.viewport;
+    vp.isPanning = true;
+    vp.panPointerId = event.pointerId;
+    vp.panStartX = event.clientX;
+    vp.panStartY = event.clientY;
+    vp.startTx = vp.tx;
+    vp.startTy = vp.ty;
+    applyScreenEditorViewportTransform();
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
+
+  window.addEventListener('pointermove', (event) => {
+    const vp = screenEditorState.viewport;
+    if (!vp.isPanning || vp.panPointerId !== event.pointerId) return;
+
+    vp.tx = vp.startTx + (event.clientX - vp.panStartX);
+    vp.ty = vp.startTy + (event.clientY - vp.panStartY);
+    applyScreenEditorViewportTransform();
+    event.preventDefault();
+  });
+
+  const endPan = (event) => {
+    const vp = screenEditorState.viewport;
+    if (vp.panPointerId !== event.pointerId) return;
+    vp.isPanning = false;
+    vp.panPointerId = null;
+    applyScreenEditorViewportTransform();
+  };
+
+  window.addEventListener('pointerup', endPan);
+  window.addEventListener('pointercancel', endPan);
+
+  zoomInBtn.addEventListener('click', () => {
+    setScreenEditorViewportScale(screenEditorState.viewport.scale + 0.15);
+  });
+  zoomOutBtn.addEventListener('click', () => {
+    setScreenEditorViewportScale(screenEditorState.viewport.scale - 0.15);
+  });
+  zoomResetBtn.addEventListener('click', () => {
+    resetScreenEditorViewport();
+    applyScreenEditorViewportTransform();
+  });
+
+  screenEditorState.viewportBound = true;
 }

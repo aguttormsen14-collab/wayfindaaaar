@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Saxvik Admin Dashboard</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b4f8a'/%3E%3Ctext x='50%25' y='56%25' text-anchor='middle' font-size='34' fill='white' font-family='Arial,sans-serif'%3ES%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="dashboard.css?v=211" />
+  <link rel="stylesheet" href="dashboard.css?v=212" />
 </head>
 
 <body>
@@ -248,6 +248,9 @@
                   <option value="pulse">Klikkmodus: Pulse</option>
                 </select>
                 <select id="screenEditorClickTarget" class="screen-editor-select hidden" title="Målside for nye hotspot-navigationer"></select>
+                <button id="screenEditorZoomOutBtn" class="btn btn-secondary btn-sm" type="button">Zoom -</button>
+                <button id="screenEditorZoomResetBtn" class="btn btn-secondary btn-sm" type="button">100%</button>
+                <button id="screenEditorZoomInBtn" class="btn btn-secondary btn-sm" type="button">Zoom +</button>
                 <button id="screenEditorAddHotspotBtn" class="btn btn-secondary btn-sm" type="button">Ny hotspot</button>
                 <button id="screenEditorDeleteHotspotBtn" class="btn btn-secondary btn-sm" type="button">Slett valgt hotspot</button>
                 <button id="screenEditorAddPulseBtn" class="btn btn-secondary btn-sm" type="button">Ny pulse</button>
@@ -392,7 +395,7 @@
   <script src="../supabase-config.js"></script>
   <script src="./admin-auth-supabase.js"></script>
   <script src="./admin-ads.js"></script>
-  <script src="./dashboard.js?v=211"></script>
+  <script src="./dashboard.js?v=212"></script>
   
   <script>
     const params = new URLSearchParams(location.search);

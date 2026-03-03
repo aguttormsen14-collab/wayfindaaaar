@@ -709,6 +709,11 @@ body {
   justify-content: center;
   overflow: hidden;
   contain: layout style paint;
+  cursor: default;
+}
+
+.screen-editor-stage.screen-editor-stage-panning {
+  cursor: grabbing;
 }
 
 .screen-editor-image {
