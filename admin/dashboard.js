@@ -88,6 +88,59 @@ if (logoutBtn) {
   });
 }
 
+function initDashboardModuleNavigation() {
+  const moduleStorageKey = 'sx_admin_dashboard_module';
+  const navItems = Array.from(document.querySelectorAll('.sidebar .nav-item[data-dashboard-module]'));
+  const cards = Array.from(document.querySelectorAll('.content-grid .card[data-modules]'));
+  const pageTitleEl = document.getElementById('pageTitle');
+
+  if (!navItems.length || !cards.length) return;
+
+  function setActiveModule(moduleName) {
+    navItems.forEach((item) => {
+      const isActive = item.dataset.dashboardModule === moduleName;
+      item.classList.toggle('active', isActive);
+      if (isActive) item.setAttribute('aria-current', 'page');
+      else item.removeAttribute('aria-current');
+    });
+
+    cards.forEach((card) => {
+      const modules = (card.dataset.modules || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+      card.classList.toggle('hidden', !modules.includes(moduleName));
+    });
+
+    const activeItem = navItems.find((item) => item.dataset.dashboardModule === moduleName);
+    if (pageTitleEl && activeItem) {
+      pageTitleEl.textContent = activeItem.dataset.moduleTitle || 'Oversikt';
+    }
+
+    localStorage.setItem(moduleStorageKey, moduleName);
+  }
+
+  navItems.forEach((item) => {
+    item.addEventListener('click', (event) => {
+      event.preventDefault();
+      const moduleName = item.dataset.dashboardModule;
+      if (!moduleName) return;
+      setActiveModule(moduleName);
+    });
+  });
+
+  const savedModule = localStorage.getItem(moduleStorageKey);
+  const hasSavedModule = savedModule && navItems.some((item) => item.dataset.dashboardModule === savedModule);
+  const initialModule = hasSavedModule
+    ? savedModule
+    : (navItems[0] && navItems[0].dataset.dashboardModule);
+
+  if (initialModule) {
+    setActiveModule(initialModule);
+  }
+}
+
 function showBootError(message, details) {
   const zoneEl = document.getElementById('adsDropzone');
   const statusEl = document.getElementById('statusContent');
@@ -165,6 +218,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Show install slug
   const cfg = window.getSupabaseConfig();
   if (installEl) installEl.textContent = cfg.installSlug || 'ukjent';
+
+  initDashboardModuleNavigation();
 
   // ensure supabase client is ready before interacting with UI
   const supabase = getSupabase();

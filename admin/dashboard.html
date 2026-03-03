@@ -32,15 +32,15 @@
         <img id="sxLogo" src="" alt="Saxvik Hub" class="logo" />
       </div>
       <nav class="sidebar-nav">
-        <a href="#" class="nav-item active">
+        <a href="#" class="nav-item active" data-dashboard-module="dashboard" data-module-title="Oversikt">
           <span class="nav-icon">📊</span>
           <span class="nav-label">Dashboard</span>
         </a>
-        <a href="#" class="nav-item">
+        <a href="#" class="nav-item" data-dashboard-module="screens" data-module-title="Skjermer">
           <span class="nav-icon">📺</span>
           <span class="nav-label">Skjermer</span>
         </a>
-        <a href="#" class="nav-item">
+        <a href="#" class="nav-item" data-dashboard-module="ads" data-module-title="Reklame">
           <span class="nav-icon">📢</span>
           <span class="nav-label">Reklame</span>
         </a>
@@ -53,7 +53,7 @@
         
         <!-- Page Header -->
         <div class="page-header">
-          <h2 class="page-title">Oversikt</h2>
+          <h2 id="pageTitle" class="page-title">Oversikt</h2>
           <div class="page-actions">
             <span class="badge badge-success">
               Installasjon: <strong id="currentInstall">amfi-steinkjer</strong>
@@ -65,7 +65,7 @@
         <div class="content-grid">
           
           <!-- Reklame Card -->
-          <div class="card card-full">
+          <div class="card card-full" data-modules="dashboard,ads">
             <div class="card-header">
               <div>
                 <h3 class="card-title">Reklamebibliotek</h3>
@@ -96,7 +96,7 @@
           </div>
 
           <!-- Skjerminnstillinger Card -->
-          <div class="card">
+          <div class="card" data-modules="dashboard,screens">
             <div class="card-header">
               <div>
                 <h3 class="card-title">Skjerminnstillinger</h3>
@@ -145,7 +145,7 @@
           </div>
 
           <!-- Skjermeditor Card -->
-          <div class="card card-full">
+          <div class="card card-full" data-modules="screens">
             <div class="card-header">
               <div>
                 <h3 class="card-title">Skjermeditor</h3>
@@ -168,7 +168,7 @@
           </div>
 
           <!-- Spilling (Playlist) Card -->
-          <div class="card">
+          <div class="card" data-modules="ads">
             <div class="card-header">
               <div>
                 <h3 class="card-title">Reklamespilling</h3>
@@ -186,7 +186,7 @@
           </div>
 
           <!-- Værinnstillinger Card -->
-          <div class="card">
+          <div class="card" data-modules="dashboard,screens">
             <div class="card-header">
               <div>
                 <h3 class="card-title">Værinnstillinger</h3>
@@ -201,7 +201,7 @@
           </div>
 
           <!-- Status Card -->
-          <div class="card">
+          <div class="card" data-modules="dashboard">
             <div class="card-header">
               <div>
                 <h3 class="card-title">Systemstatus</h3>
