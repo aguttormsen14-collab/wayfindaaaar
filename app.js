@@ -848,8 +848,9 @@ function bindMapGestureHandlers() {
   if (!screenEl || screenEl.dataset.mapGestureBound === '1') return;
   screenEl.dataset.mapGestureBound = '1';
 
-  screenEl.addEventListener('wheel', (event) => {
+  const onWheelZoom = (event) => {
     if (!mapViewState.enabled) return;
+    if (!event.target || !event.target.closest || !event.target.closest('#screen')) return;
     const modal = document.getElementById('storeModal');
     if (modal && !modal.classList.contains('hidden')) return;
 
@@ -857,7 +858,10 @@ function bindMapGestureHandlers() {
     const step = event.ctrlKey ? 0.22 : 0.16;
     setMapScale(mapViewState.scale + (dir * step), event.clientX, event.clientY);
     event.preventDefault();
-  }, { passive: false });
+  };
+
+  screenEl.addEventListener('wheel', onWheelZoom, { passive: false });
+  document.addEventListener('wheel', onWheelZoom, { passive: false, capture: true });
 
   screenEl.addEventListener('pointerdown', (event) => {
     if (!mapViewState.enabled) return;
