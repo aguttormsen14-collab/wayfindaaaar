@@ -6,14 +6,14 @@
     const client = window.supabaseClient;
     if (!client) {
       console.error('[DASHBOARD] Supabase client not initialized');
-      window.location.href = './login.html';
+      window.location.replace('./login.html');
       return;
     }
 
     const { data: sessionData } = await client.auth.getSession();
 
     if (!sessionData.session) {
-      window.location.href = './login.html';
+      window.location.replace('./login.html');
       return;
     }
 
@@ -28,21 +28,31 @@
     if (error || !roleData) {
       alert("Ingen tilgang");
       await client.auth.signOut();
-      window.location.href = './login.html';
+      window.location.replace('./login.html');
       return;
     }
 
-    const cfg = typeof window.getSupabaseConfig === 'function' ? window.getSupabaseConfig() : null;
-    const currentInstall = new URLSearchParams(window.location.search).get("install") || cfg?.installSlug || null;
+    const normalizeSlug = (value) => (typeof value === 'string' ? value.trim().toLowerCase() : '');
+    const roleInstall = normalizeSlug(roleData.install_slug);
+    const params = new URLSearchParams(window.location.search);
+    const installFromQuery = normalizeSlug(params.get("install"));
 
-    if (roleData.install_slug !== currentInstall) {
+    // Enforce tenant check only when install is explicitly requested in URL
+    if (installFromQuery && roleInstall !== installFromQuery) {
       alert("Feil installasjon");
-      window.location.href = './login.html';
+      window.location.replace('./login.html');
       return;
+    }
+
+    // If install is missing in URL, lock URL to user's tenant for consistent behavior
+    if (!installFromQuery && roleInstall) {
+      params.set('install', roleInstall);
+      const next = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, '', next);
     }
   } catch (e) {
     console.error('[DASHBOARD] Access guard failed:', e);
-    window.location.href = './login.html';
+    window.location.replace('./login.html');
   }
 })();
 
