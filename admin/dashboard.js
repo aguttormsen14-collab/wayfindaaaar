@@ -1140,19 +1140,36 @@ async function uploadPopupAssetForSelectedHotspot(kind, file) {
     return;
   }
 
+  if (!screenEditorState.supabase || !screenEditorState.cfg) {
+    setScreenEditorStatus('Supabase er ikke klar – prøv å laste editoren på nytt', 'error');
+    return;
+  }
+
   const actionEl = document.getElementById('screenEditorHotspotAction');
   if ((actionEl?.value || 'none') !== 'popup') {
-    setScreenEditorStatus('Velg handling "Popup" før opplasting', 'warn');
-    return;
+    if (actionEl) {
+      actionEl.value = 'popup';
+      updateHotspotActionFieldVisibility();
+    }
+    delete hotspot.go;
+    ensurePopupConfig(hotspot);
   }
 
   if (!file) return;
 
   const storeIdEl = document.getElementById('screenEditorStoreId');
-  const storeId = (storeIdEl?.value || hotspot.storeId || '').trim();
+  const fallbackStoreId = String(hotspot.id || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-');
+  const storeId = (storeIdEl?.value || hotspot.storeId || fallbackStoreId).trim();
   if (!storeId) {
     setScreenEditorStatus('Legg inn Butikk-ID før opplasting', 'warn');
     return;
+  }
+
+  if (storeIdEl && !storeIdEl.value.trim()) {
+    storeIdEl.value = storeId;
   }
 
   const extMatch = String(file.name || '').toLowerCase().match(/\.(webp|png|jpe?g|svg)$/i);
@@ -1739,6 +1756,19 @@ function bindHotspotPanelEvents() {
     const wireUpload = (dropEl, inputEl, kind) => {
       if (!dropEl || !inputEl) return;
 
+      const extractFile = (event) => {
+        const files = Array.from(event?.dataTransfer?.files || []);
+        if (files.length) return files[0];
+        const items = Array.from(event?.dataTransfer?.items || []);
+        for (const item of items) {
+          if (item.kind === 'file') {
+            const asFile = item.getAsFile();
+            if (asFile) return asFile;
+          }
+        }
+        return null;
+      };
+
       dropEl.addEventListener('click', () => inputEl.click());
 
       inputEl.addEventListener('change', async () => {
@@ -1751,19 +1781,25 @@ function bindHotspotPanelEvents() {
 
       dropEl.addEventListener('dragover', (event) => {
         event.preventDefault();
+        event.stopPropagation();
         dropEl.classList.add('drag-over');
       });
 
-      dropEl.addEventListener('dragleave', () => {
+      dropEl.addEventListener('dragleave', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         dropEl.classList.remove('drag-over');
       });
 
       dropEl.addEventListener('drop', async (event) => {
         event.preventDefault();
+        event.stopPropagation();
         dropEl.classList.remove('drag-over');
-        const file = event.dataTransfer?.files?.[0];
+        const file = extractFile(event);
         if (file) {
           await uploadPopupAssetForSelectedHotspot(kind, file);
+        } else {
+          setScreenEditorStatus('Fant ingen fil i drag-and-drop', 'warn');
         }
       });
     };
