@@ -1467,11 +1467,36 @@ async function openStorePopup(input){
     if (!rawPath || typeof rawPath !== 'string') return null;
     const path = rawPath.trim();
     if (!path) return null;
-    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('/')) return path;
-    if (path.startsWith('installs/')) return withBase(path);
-    if (path.startsWith('assets/')) return `${BASE_ASSETS}/${path.slice('assets/'.length)}`;
-    if (path.startsWith('stores/')) return `${BASE_ASSETS}/${path}`;
-    return `${STORES_ASSETS}/${path}`;
+
+    const toPublic = (installPath) => {
+      const normalized = typeof installPath === 'string' ? installPath.trim() : '';
+      if (!normalized) return null;
+
+      const supabase = getSupabase();
+      const cfg = (typeof window.getSupabaseConfig === 'function') ? window.getSupabaseConfig() : null;
+      const bucket = cfg?.bucket;
+      if (supabase && bucket) {
+        const { data } = supabase.storage.from(bucket).getPublicUrl(normalized);
+        if (data?.publicUrl) return data.publicUrl;
+      }
+
+      return withBase(normalized);
+    };
+
+    if (path.startsWith('data:') || path.startsWith('/')) return path;
+
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      const match = path.match(/\/storage\/v1\/object\/public\/[^/]+\/(installs\/.*)$/i);
+      if (match?.[1]) {
+        return toPublic(decodeURIComponent(match[1]));
+      }
+      return path;
+    }
+
+    if (path.startsWith('installs/')) return toPublic(path);
+    if (path.startsWith('assets/')) return toPublic(`installs/${INSTALL_ID}/${path}`);
+    if (path.startsWith('stores/')) return toPublic(`installs/${INSTALL_ID}/assets/${path}`);
+    return toPublic(`installs/${INSTALL_ID}/assets/stores/${path}`);
   };
 
   const layout = {

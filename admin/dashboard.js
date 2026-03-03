@@ -1065,22 +1065,54 @@ function ensurePopupConfig(hotspot) {
   return hotspot.popup;
 }
 
+function toEditorInstallAssetPath(rawPath) {
+  if (typeof rawPath !== 'string' || !rawPath.trim()) return '';
+  const path = rawPath.trim();
+
+  if (path.startsWith('installs/')) {
+    return path;
+  }
+  if (path.startsWith('assets/')) {
+    return `installs/${screenEditorState.cfg.installSlug}/${path}`;
+  }
+  if (path.startsWith('stores/')) {
+    return `installs/${screenEditorState.cfg.installSlug}/assets/${path}`;
+  }
+  return `installs/${screenEditorState.cfg.installSlug}/assets/stores/${path}`;
+}
+
+function toEditorPublicUrl(installPath) {
+  const path = typeof installPath === 'string' ? installPath.trim() : '';
+  if (!path) return '';
+
+  const supabase = screenEditorState.supabase;
+  const bucket = screenEditorState.cfg?.bucket;
+  if (supabase && bucket) {
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    if (data?.publicUrl) return data.publicUrl;
+  }
+
+  return withBase(path);
+}
+
 function getPopupAssetUrlForEditor(rawPath) {
   if (typeof rawPath !== 'string' || !rawPath.trim()) return '';
   const path = rawPath.trim();
-  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('/')) {
+
+  if (path.startsWith('data:') || path.startsWith('/')) {
     return path;
   }
-  if (path.startsWith('installs/')) {
-    return withBase(path);
+
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    const match = path.match(/\/storage\/v1\/object\/public\/[^/]+\/(installs\/.*)$/i);
+    if (match?.[1]) {
+      const installPath = decodeURIComponent(match[1]);
+      return toEditorPublicUrl(installPath);
+    }
+    return path;
   }
-  if (path.startsWith('assets/')) {
-    return withBase(`installs/${screenEditorState.cfg.installSlug}/${path}`);
-  }
-  if (path.startsWith('stores/')) {
-    return withBase(`installs/${screenEditorState.cfg.installSlug}/assets/${path}`);
-  }
-  return withBase(`installs/${screenEditorState.cfg.installSlug}/assets/stores/${path}`);
+
+  return toEditorPublicUrl(toEditorInstallAssetPath(path));
 }
 
 function renderPopupDesignerPreview(hotspot) {
@@ -1162,7 +1194,10 @@ async function uploadPopupAssetForSelectedHotspot(kind, file) {
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9_-]+/g, '-');
-  const storeId = (storeIdEl?.value || hotspot.storeId || fallbackStoreId).trim();
+  const storeId = String(storeIdEl?.value || hotspot.storeId || fallbackStoreId)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-');
   if (!storeId) {
     setScreenEditorStatus('Legg inn Butikk-ID før opplasting', 'warn');
     return;
