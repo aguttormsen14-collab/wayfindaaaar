@@ -714,7 +714,7 @@ body {
 }
 
 .screen-editor-shell.with-detail {
-  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
+  grid-template-columns: 1fr;
 }
 
 .screen-editor-select {
@@ -751,9 +751,8 @@ body {
 }
 
 .screen-editor-detail-panel {
-  margin-top: 0;
-  position: sticky;
-  top: 12px;
+  margin-top: 2px;
+  position: static;
 }
 
 .screen-editor-image {
@@ -1015,10 +1014,6 @@ body {
   .screen-editor-shell,
   .screen-editor-shell.with-detail {
     grid-template-columns: 1fr;
-  }
-
-  .screen-editor-detail-panel {
-    position: static;
   }
 
   .popup-upload-grid {
