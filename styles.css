@@ -316,6 +316,15 @@ html, body {
   overflow: hidden;
 }
 
+#screen.map-zoomable {
+  touch-action: none;
+  cursor: grab;
+}
+
+#screen.map-zoomable.map-panning {
+  cursor: grabbing;
+}
+
 /* two background layers */
 .bg-layer{
   position: absolute;

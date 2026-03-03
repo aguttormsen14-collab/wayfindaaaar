@@ -663,6 +663,17 @@ function round3(v) {
   return Math.round(v * 1000) / 1000;
 }
 
+function isEditableTarget(target) {
+  if (!target) return false;
+  const tag = target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  return !!target.isContentEditable;
+}
+
+function isMapScreenId(id) {
+  return !!(id && String(id).includes('map'));
+}
+
 // --- Interaction helpers for onboarding/tap hint ---
 function isPassiveScreen(id) {
   return id === "idle" || id === "ads" || id === "ad" || (id && id.includes("reklame"));
@@ -727,6 +738,200 @@ function createTouchHint() {
 // String helpers
 const bgA = document.getElementById('bgA');
 const bgB = document.getElementById('bgB');
+
+const mapViewState = {
+  enabled: false,
+  scale: 1,
+  minScale: 1,
+  maxScale: 3,
+  tx: 0,
+  ty: 0,
+  isPanning: false,
+  panPointerId: null,
+  panStartX: 0,
+  panStartY: 0,
+  startTx: 0,
+  startTy: 0,
+  pointers: new Map(),
+  pinchStartDistance: 0,
+  pinchStartScale: 1,
+};
+
+function getMapTransformTargets() {
+  return [bgA, bgB, hotspotsEl, videoEl].filter(Boolean);
+}
+
+function clampMapPan() {
+  const w = screenEl?.clientWidth || window.innerWidth || 1;
+  const h = screenEl?.clientHeight || window.innerHeight || 1;
+  const maxX = ((mapViewState.scale - 1) * w) / 2;
+  const maxY = ((mapViewState.scale - 1) * h) / 2;
+  mapViewState.tx = Math.max(-maxX, Math.min(maxX, mapViewState.tx));
+  mapViewState.ty = Math.max(-maxY, Math.min(maxY, mapViewState.ty));
+}
+
+function applyMapTransform() {
+  const transform = `translate(${mapViewState.tx}px, ${mapViewState.ty}px) scale(${mapViewState.scale})`;
+  getMapTransformTargets().forEach((el) => {
+    el.style.transformOrigin = '50% 50%';
+    el.style.transform = transform;
+  });
+  if (screenEl) {
+    screenEl.classList.toggle('map-zoomable', mapViewState.enabled);
+    screenEl.classList.toggle('map-panning', mapViewState.isPanning);
+  }
+}
+
+function setMapScale(nextScale, anchorClientX, anchorClientY) {
+  if (!mapViewState.enabled) return;
+
+  const prevScale = mapViewState.scale;
+  const clamped = Math.max(mapViewState.minScale, Math.min(mapViewState.maxScale, nextScale));
+  if (Math.abs(clamped - prevScale) < 0.0001) return;
+
+  const rect = screenEl.getBoundingClientRect();
+  const cX = rect.width / 2;
+  const cY = rect.height / 2;
+  const anchorX = (anchorClientX ?? (rect.left + cX)) - rect.left;
+  const anchorY = (anchorClientY ?? (rect.top + cY)) - rect.top;
+
+  const k = clamped / prevScale;
+  const oX = anchorX - cX;
+  const oY = anchorY - cY;
+
+  mapViewState.tx = oX - ((oX - mapViewState.tx) * k);
+  mapViewState.ty = oY - ((oY - mapViewState.ty) * k);
+  mapViewState.scale = clamped;
+
+  if (mapViewState.scale <= 1.0001) {
+    mapViewState.scale = 1;
+    mapViewState.tx = 0;
+    mapViewState.ty = 0;
+  }
+
+  clampMapPan();
+  applyMapTransform();
+}
+
+function resetMapView() {
+  mapViewState.scale = 1;
+  mapViewState.tx = 0;
+  mapViewState.ty = 0;
+  mapViewState.isPanning = false;
+  mapViewState.panPointerId = null;
+  mapViewState.pointers.clear();
+  mapViewState.pinchStartDistance = 0;
+  mapViewState.pinchStartScale = 1;
+  applyMapTransform();
+}
+
+function updateMapInteractionMode(screenName) {
+  mapViewState.enabled = isMapScreenId(screenName);
+  if (!mapViewState.enabled) {
+    resetMapView();
+    if (screenEl) {
+      screenEl.classList.remove('map-zoomable');
+      screenEl.classList.remove('map-panning');
+    }
+    return;
+  }
+  resetMapView();
+}
+
+function pointerDistance(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.hypot(dx, dy);
+}
+
+function bindMapGestureHandlers() {
+  if (!screenEl || screenEl.dataset.mapGestureBound === '1') return;
+  screenEl.dataset.mapGestureBound = '1';
+
+  screenEl.addEventListener('wheel', (event) => {
+    if (!mapViewState.enabled) return;
+    const modal = document.getElementById('storeModal');
+    if (modal && !modal.classList.contains('hidden')) return;
+
+    const dir = event.deltaY < 0 ? 1 : -1;
+    const step = event.ctrlKey ? 0.22 : 0.16;
+    setMapScale(mapViewState.scale + (dir * step), event.clientX, event.clientY);
+    event.preventDefault();
+  }, { passive: false });
+
+  screenEl.addEventListener('pointerdown', (event) => {
+    if (!mapViewState.enabled) return;
+    if (event.target && (event.target.closest('.hotspot') || event.target.closest('#storeModal'))) return;
+
+    mapViewState.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    if (mapViewState.pointers.size === 2) {
+      const points = [...mapViewState.pointers.values()];
+      mapViewState.pinchStartDistance = pointerDistance(points[0], points[1]);
+      mapViewState.pinchStartScale = mapViewState.scale;
+      mapViewState.isPanning = false;
+      applyMapTransform();
+      return;
+    }
+
+    if (mapViewState.scale <= 1.0001) return;
+
+    mapViewState.isPanning = true;
+    mapViewState.panPointerId = event.pointerId;
+    mapViewState.panStartX = event.clientX;
+    mapViewState.panStartY = event.clientY;
+    mapViewState.startTx = mapViewState.tx;
+    mapViewState.startTy = mapViewState.ty;
+    applyMapTransform();
+    event.preventDefault();
+  });
+
+  screenEl.addEventListener('pointermove', (event) => {
+    if (!mapViewState.enabled) return;
+
+    if (mapViewState.pointers.has(event.pointerId)) {
+      mapViewState.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
+
+    if (mapViewState.pointers.size === 2) {
+      const points = [...mapViewState.pointers.values()];
+      const distance = pointerDistance(points[0], points[1]);
+      if (mapViewState.pinchStartDistance > 0 && Number.isFinite(distance)) {
+        const ratio = distance / mapViewState.pinchStartDistance;
+        const midX = (points[0].x + points[1].x) / 2;
+        const midY = (points[0].y + points[1].y) / 2;
+        setMapScale(mapViewState.pinchStartScale * ratio, midX, midY);
+        event.preventDefault();
+      }
+      return;
+    }
+
+    if (!mapViewState.isPanning || mapViewState.panPointerId !== event.pointerId) return;
+
+    mapViewState.tx = mapViewState.startTx + (event.clientX - mapViewState.panStartX);
+    mapViewState.ty = mapViewState.startTy + (event.clientY - mapViewState.panStartY);
+    clampMapPan();
+    applyMapTransform();
+    event.preventDefault();
+  });
+
+  const endPointer = (event) => {
+    mapViewState.pointers.delete(event.pointerId);
+    if (mapViewState.panPointerId === event.pointerId) {
+      mapViewState.panPointerId = null;
+      mapViewState.isPanning = false;
+      applyMapTransform();
+    }
+
+    if (mapViewState.pointers.size < 2) {
+      mapViewState.pinchStartDistance = 0;
+      mapViewState.pinchStartScale = mapViewState.scale;
+    }
+  };
+
+  screenEl.addEventListener('pointerup', endPointer);
+  screenEl.addEventListener('pointercancel', endPointer);
+}
 
 let bgToken = 0;
 let bgFront = 'A';         // which layer is currently visible
@@ -894,15 +1099,23 @@ async function applyLayout(screenName){
 }
 
 // re-layout on resize/orientation
-window.addEventListener('resize', () => { if(currentScreen) applyLayout(currentScreen); });
-window.addEventListener('orientationchange', () => { if(currentScreen) applyLayout(currentScreen); });
+window.addEventListener('resize', () => {
+  if(!currentScreen) return;
+  if (mapViewState.enabled) resetMapView();
+  applyLayout(currentScreen);
+});
+window.addEventListener('orientationchange', () => {
+  if(!currentScreen) return;
+  if (mapViewState.enabled) resetMapView();
+  applyLayout(currentScreen);
+});
 
 // Render actual hotspots and pulses for the current screen (mapped to image fit rect)
 function setScreen(screenName) {
   if (!SCREENS[screenName]) return console.error("Unknown screen:", screenName);
 
   // detect transition from a map screen into a passive state
-  const leavingMap = currentScreen && (currentScreen.startsWith("map") || currentScreen.includes("map"));
+  const leavingMap = isMapScreenId(currentScreen);
   const goingPassive = screenName === "idle" || screenName === "menu" || screenName === "floors" || screenName === "ads" || screenName === "ad" || (screenName && screenName.includes("reklame"));
   if (leavingMap && goingPassive) {
     clearMapArtifacts();
@@ -918,6 +1131,7 @@ function setScreen(screenName) {
   }
 
   currentScreen = screenName;
+  updateMapInteractionMode(screenName);
   const config = SCREENS[screenName];
 
   // record when we entered idle
@@ -1759,7 +1973,7 @@ function openAdminPanel(){
     // Close hint
     const hint = document.createElement('div');
     hint.style.fontSize = '11px'; hint.style.opacity = '0.8'; hint.style.marginTop = '8px';
-    hint.textContent = 'Hold SHIFT+D for 2s to open/close admin panel';
+    hint.textContent = 'Hold CTRL+SHIFT+D for 2s to open/close admin panel';
     adminPanel.appendChild(hint);
   }
 
@@ -1804,7 +2018,7 @@ function resetIdleTimer(){
 
 document.addEventListener('pointerdown', () => {
   resetIdleTimer();
-}, {passive:true});
+}, {passive:false});
 
 // Edit mode / keyboard navigation
 function updateDebugOverlayPointer(){
@@ -1829,6 +2043,7 @@ function prevScreen(){
 }
 
 document.addEventListener('keydown', (e) => {
+  if (isEditableTarget(document.activeElement) || isEditableTarget(e.target)) return;
   // ArrowDown holds editMode. Ignore autorepeat flips.
   if(e.code === 'ArrowDown'){
     if(!e.repeat && !editMode){ editMode = true; updateDebugOverlayPointer(); }
@@ -1867,27 +2082,28 @@ function setDebugMode(enabled){
   }
 }
 
-// Toggle via KeyD (ignore when input/textarea focused)
-let adminHoldTimer = null; // used by admin open (Shift+D hold)
+// Toggle via Ctrl+D (ignore when typing)
+let adminHoldTimer = null;
 document.addEventListener('keydown', (e) => {
-  const tag = document.activeElement && document.activeElement.tagName;
-  if(tag === 'INPUT' || tag === 'TEXTAREA' || (document.activeElement && document.activeElement.isContentEditable)) return;
+  if (isEditableTarget(document.activeElement) || isEditableTarget(e.target)) return;
 
-  // Admin panel open: hold SHIFT + D for 2s
-  if(e.code === 'KeyD' && e.shiftKey && !adminHoldTimer){
+  // Admin panel open: hold CTRL + SHIFT + D for 2s
+  if(e.code === 'KeyD' && e.ctrlKey && e.shiftKey && !adminHoldTimer){
+    e.preventDefault();
     adminHoldTimer = setTimeout(() => { toggleAdminPanel(); adminHoldTimer = null; }, 2000);
     return;
   }
 
-  // Toggle debug with plain D (no shift)
-  if(e.code === 'KeyD' && !e.shiftKey && !e.repeat){
+  // Toggle debug with CTRL + D
+  if(e.code === 'KeyD' && e.ctrlKey && !e.shiftKey && !e.repeat){
+    e.preventDefault();
     setDebugMode(!DEBUG);
     return;
   }
 }, {passive:true});
 
 document.addEventListener('keyup', (e) => {
-  if(e.code === 'KeyD'){
+  if(e.code === 'KeyD' || e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'ControlLeft' || e.code === 'ControlRight'){
     if(adminHoldTimer){ clearTimeout(adminHoldTimer); adminHoldTimer = null; }
   }
 }, {passive:true});
@@ -2094,6 +2310,7 @@ function init(){
 
   // setup onboarding UI elements
   createTouchHint();
+  bindMapGestureHandlers();
   // create tap catcher early (will stay hidden until ads play)
   const catcher = document.createElement('div');
   catcher.id = 'adsTapCatcher';
@@ -2147,7 +2364,8 @@ function init(){
   document.addEventListener('touchmove', (e) => {
     // allow scroll on specific elements only
     const target = e.target;
-    if (!target || (!target.closest('.hotspot') && !target.closest('#menuScreen'))) {
+    const allowMapPan = mapViewState.enabled && !!(target && target.closest && target.closest('#screen'));
+    if (!target || (!target.closest('.hotspot') && !target.closest('#menuScreen') && !allowMapPan)) {
       e.preventDefault();
     }
   }, { passive: false });
