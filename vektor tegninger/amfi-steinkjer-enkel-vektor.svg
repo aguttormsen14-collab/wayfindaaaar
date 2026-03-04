@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1000" viewBox="0 0 1400 1000" role="img" aria-labelledby="title desc">
+  <title id="title">AMFI Steinkjer – Enkel vektortegning (wayfinding-stil)</title>
+  <desc id="desc">Stilisert vektorversjon av plantegning med butikksoner, gangarealer, innganger og eksempelrute.</desc>
+
+  <defs>
+    <style>
+      .bg { fill: #eef0f3; }
+      .site-frame { fill: none; stroke: #c6cbd3; stroke-width: 2; }
+
+      .shell { fill: #f8fafc; stroke: #334155; stroke-width: 4; }
+      .shop { stroke: #94a3b8; stroke-width: 2; }
+
+      .zone-a { fill: #f8dccd; }
+      .zone-b { fill: #d8e9ff; }
+      .zone-c { fill: #f6f1cf; }
+      .zone-d { fill: #e7d8ff; }
+      .zone-e { fill: #cbeffe; }
+      .zone-f { fill: #ffd8ea; }
+      .zone-g { fill: #d8fbd6; }
+
+      .corridor {
+        fill: none;
+        stroke: #bff4c8;
+        stroke-width: 56;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        opacity: 0.95;
+      }
+
+      .corridor-edge {
+        fill: none;
+        stroke: #7dcf8f;
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        opacity: 0.8;
+      }
+
+      .route {
+        fill: none;
+        stroke: #1d4ed8;
+        stroke-width: 8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 14 10;
+      }
+
+      .poi {
+        fill: #ffffff;
+        stroke: #1f2937;
+        stroke-width: 3;
+      }
+
+      .map-title {
+        font-family: "Segoe UI", Arial, sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+        fill: #0f172a;
+      }
+
+      .map-subtitle {
+        font-family: "Segoe UI", Arial, sans-serif;
+        font-size: 14px;
+        fill: #475569;
+      }
+
+      .label {
+        font-family: "Segoe UI", Arial, sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        fill: #1e293b;
+        text-anchor: middle;
+      }
+
+      .small-label {
+        font-family: "Segoe UI", Arial, sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        fill: #0f172a;
+      }
+
+      .legend {
+        fill: #ffffff;
+        stroke: #cbd5e1;
+        stroke-width: 2;
+      }
+    </style>
+
+    <clipPath id="allClip">
+      <path d="M250 180 L440 180 L440 150 L760 150 L760 182 L950 182 L1005 220 L1080 220 L1120 260 L1120 340 L1070 372 L1070 560 L880 560 L860 530 L630 530 L600 560 L320 560 L250 520 L215 462 L215 260 Z"/>
+      <rect x="585" y="560" width="240" height="58" rx="14"/>
+      <path d="M470 618 L905 618 L905 930 L565 930 Q455 922 412 855 Q375 790 410 708 Q430 650 470 618 Z"/>
+    </clipPath>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1400" height="1000"/>
+  <rect class="site-frame" x="52" y="40" width="1296" height="920"/>
+
+  <text class="map-title" x="84" y="78">AMFI Steinkjer – Forenklet wayfinding-kart</text>
+  <text class="map-subtitle" x="84" y="102">Enkel vektorversjon for kiosk/infoskjerm (ikke målfast CAD)</text>
+
+  <g id="building-shell">
+    <path class="shell" d="M250 180 L440 180 L440 150 L760 150 L760 182 L950 182 L1005 220 L1080 220 L1120 260 L1120 340 L1070 372 L1070 560 L880 560 L860 530 L630 530 L600 560 L320 560 L250 520 L215 462 L215 260 Z"/>
+    <rect class="shell" x="585" y="560" width="240" height="58" rx="14"/>
+    <path class="shell" d="M470 618 L905 618 L905 930 L565 930 Q455 922 412 855 Q375 790 410 708 Q430 650 470 618 Z"/>
+  </g>
+
+  <g id="shop-zones">
+    <rect id="shop-a1" class="shop zone-a" x="255" y="190" width="170" height="120"/>
+    <polygon id="shop-a2" class="shop zone-b" points="255,315 405,315 405,430 250,430"/>
+    <polygon id="shop-a3" class="shop zone-c" points="255,435 390,435 390,515 320,515 270,490"/>
+    <rect id="shop-a4" class="shop zone-g" x="410" y="200" width="105" height="105"/>
+
+    <rect id="shop-b1" class="shop zone-d" x="445" y="165" width="150" height="140"/>
+    <rect id="shop-b2" class="shop zone-c" x="600" y="160" width="150" height="145"/>
+    <rect id="shop-b3" class="shop zone-b" x="445" y="315" width="130" height="115"/>
+    <polygon id="shop-b4" class="shop zone-f" points="445,435 565,435 565,520 415,520"/>
+    <polygon id="shop-b5" class="shop zone-e" points="575,310 735,320 730,445 620,500 575,435"/>
+
+    <rect id="shop-c1" class="shop zone-c" x="770" y="185" width="170" height="115"/>
+    <rect id="shop-c2" class="shop zone-e" x="740" y="305" width="155" height="180"/>
+    <rect id="shop-c3" class="shop zone-c" x="900" y="300" width="155" height="185"/>
+    <rect id="shop-c4" class="shop zone-b" x="945" y="185" width="120" height="115"/>
+    <rect id="shop-c5" class="shop zone-f" x="980" y="230" width="125" height="65"/>
+    <rect id="shop-c6" class="shop zone-d" x="930" y="490" width="130" height="65"/>
+
+    <rect id="shop-d1" class="shop zone-g" x="860" y="375" width="95" height="110"/>
+    <rect id="shop-d2" class="shop zone-e" x="785" y="495" width="90" height="55"/>
+    <rect id="shop-d3" class="shop zone-b" x="730" y="495" width="55" height="55"/>
+    <rect id="shop-d4" class="shop zone-c" x="390" y="315" width="50" height="105"/>
+    <rect id="shop-d5" class="shop zone-c" x="520" y="315" width="55" height="105"/>
+
+    <rect id="shop-e1" class="shop zone-c" x="520" y="650" width="335" height="250"/>
+    <rect id="shop-e2" class="shop zone-b" x="470" y="620" width="90" height="90"/>
+    <rect id="shop-e3" class="shop zone-e" x="470" y="720" width="80" height="90"/>
+    <rect id="shop-e4" class="shop zone-f" x="560" y="620" width="120" height="30"/>
+  </g>
+
+  <g id="corridors" clip-path="url(#allClip)">
+    <path class="corridor" d="M300 350 C430 338 540 334 660 345 C770 356 870 366 1000 352"/>
+    <path class="corridor" d="M445 235 L445 525"/>
+    <path class="corridor" d="M620 210 L620 530"/>
+    <path class="corridor" d="M780 230 L780 545"/>
+    <path class="corridor" d="M930 240 L930 548"/>
+    <path class="corridor" d="M520 500 L680 320"/>
+    <path class="corridor" d="M700 540 L700 900"/>
+
+    <path class="corridor-edge" d="M300 350 C430 338 540 334 660 345 C770 356 870 366 1000 352"/>
+    <path class="corridor-edge" d="M445 235 L445 525"/>
+    <path class="corridor-edge" d="M620 210 L620 530"/>
+    <path class="corridor-edge" d="M780 230 L780 545"/>
+    <path class="corridor-edge" d="M930 240 L930 548"/>
+    <path class="corridor-edge" d="M520 500 L680 320"/>
+    <path class="corridor-edge" d="M700 540 L700 900"/>
+  </g>
+
+  <g id="labels">
+    <text class="label" x="340" y="256">Sone A1</text>
+    <text class="label" x="328" y="378">Sone A2</text>
+    <text class="label" x="322" y="480">Sone A3</text>
+    <text class="label" x="462" y="258">Sone A4</text>
+
+    <text class="label" x="520" y="245">Sone B1</text>
+    <text class="label" x="675" y="245">Sone B2</text>
+    <text class="label" x="510" y="380">Sone B3</text>
+    <text class="label" x="490" y="485">Sone B4</text>
+    <text class="label" x="650" y="405">Sone B5</text>
+
+    <text class="label" x="855" y="248">Sone C1</text>
+    <text class="label" x="818" y="405">Sone C2</text>
+    <text class="label" x="978" y="405">Sone C3</text>
+    <text class="label" x="1005" y="252">Sone C4</text>
+    <text class="label" x="1042" y="270">Sone C5</text>
+    <text class="label" x="995" y="530">Sone C6</text>
+
+    <text class="label" x="907" y="438">Sone D1</text>
+    <text class="label" x="830" y="527">Sone D2</text>
+
+    <text class="label" x="688" y="790">Ankerområde</text>
+    <text class="label" x="515" y="675">Sone E2</text>
+    <text class="label" x="510" y="772">Sone E3</text>
+  </g>
+
+  <g id="entrances-poi">
+    <circle class="poi" cx="232" cy="360" r="13"/>
+    <text class="small-label" x="150" y="365">Inngang vest</text>
+
+    <circle class="poi" cx="1075" cy="360" r="13"/>
+    <text class="small-label" x="1098" y="364">Inngang øst</text>
+
+    <circle class="poi" cx="700" cy="618" r="13"/>
+    <text class="small-label" x="715" y="608">Sørinngang</text>
+  </g>
+
+  <g id="route-example">
+    <path class="route" d="M232 360 C330 350 455 348 565 360 C665 372 770 356 870 346 L1000 322"/>
+    <circle cx="232" cy="360" r="9" fill="#16a34a" stroke="#14532d" stroke-width="3"/>
+    <circle cx="1000" cy="322" r="9" fill="#ef4444" stroke="#7f1d1d" stroke-width="3"/>
+    <text class="small-label" x="260" y="335">Start</text>
+    <text class="small-label" x="1018" y="302">Mål</text>
+  </g>
+
+  <g id="legend">
+    <rect class="legend" x="980" y="50" width="325" height="150" rx="10"/>
+    <text class="small-label" x="998" y="78" style="font-size:15px; font-weight:700;">Tegnforklaring</text>
+
+    <rect x="1000" y="92" width="20" height="14" fill="#bff4c8" stroke="#7dcf8f"/>
+    <text class="small-label" x="1030" y="103">Gangareal</text>
+
+    <rect x="1000" y="117" width="20" height="14" fill="#d8e9ff" stroke="#94a3b8"/>
+    <text class="small-label" x="1030" y="128">Butikk-/soner</text>
+
+    <line x1="1000" y1="146" x2="1022" y2="146" class="route"/>
+    <text class="small-label" x="1030" y="150">Eksempelrute</text>
+
+    <circle cx="1011" cy="173" r="6" class="poi"/>
+    <text class="small-label" x="1030" y="177">POI / inngang</text>
+  </g>
+</svg>

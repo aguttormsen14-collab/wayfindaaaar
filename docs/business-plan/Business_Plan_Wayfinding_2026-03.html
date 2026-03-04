@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Business Plan – Software for Infoskjermer og Wayfinding</title>
+  <style>
+    @page { size: A4; margin: 18mm 14mm; }
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: #111827;
+      line-height: 1.45;
+      font-size: 11.5pt;
+      margin: 0;
+      background: #fff;
+    }
+    h1, h2, h3 { color: #0f172a; margin: 0 0 8px 0; }
+    h1 { font-size: 22pt; margin-top: 8px; }
+    h2 { font-size: 15pt; margin-top: 22px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+    h3 { font-size: 12pt; margin-top: 14px; }
+    p { margin: 8px 0; }
+    ul { margin: 6px 0 10px 18px; }
+    li { margin: 3px 0; }
+    .muted { color: #6b7280; }
+    .small { font-size: 10pt; }
+    .meta {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin: 12px 0 18px;
+    }
+    .kpi {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 10px 0 14px;
+    }
+    .kpi-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 8px;
+      background: #fafafa;
+    }
+    .kpi-card .v { font-size: 13pt; font-weight: 700; color: #111827; }
+    .kpi-card .l { font-size: 9.8pt; color: #6b7280; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 14px;
+      font-size: 10.2pt;
+    }
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 7px 8px;
+      vertical-align: top;
+    }
+    th {
+      background: #f3f4f6;
+      text-align: left;
+      font-weight: 600;
+    }
+    .note {
+      padding: 9px 10px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 8px;
+      font-size: 10pt;
+      margin: 10px 0;
+    }
+    .break { page-break-before: always; }
+  </style>
+</head>
+<body>
+  <h1>Business Plan – Software for Infoskjermer og Wayfinding</h1>
+  <p class="muted">Versjon 1.0 • Dato: 4. mars 2026</p>
+  <div class="meta">
+    <p><strong>Produkt:</strong> SaaS-plattform for digital signage + interaktiv wayfinding</p>
+    <p><strong>Status:</strong> Pilotfase med én aktiv pilotkunde (installasjonsspor: <em>amfi-steinkjer</em>)</p>
+    <p><strong>Grunnlag:</strong> Planen er basert på kode- og dokumentgjennomgang av eksisterende løsning (player, admin, Supabase-oppsett, sikkerhets- og driftsdokumentasjon).</p>
+  </div>
+
+  <h2>1. Executive Summary</h2>
+  <p>Løsningen kombinerer <strong>digital skilting</strong> og <strong>wayfinding</strong> i én plattform for offentlige bygg med mye trafikk. Produktet er designet for touch-kiosker og infoskjermmiljøer hvor man trenger både annonser, sanntidsinformasjon og enkel navigasjon i samme opplevelse.</p>
+  <p>Typiske miljøer: kjøpesentre, sykehus, campus, transportknutepunkter, kontorbygg, kulturarenaer og hoteller.</p>
+  <ul>
+    <li><strong>Kjerneverdi:</strong> Raskere navigasjon for besøkende, færre spørsmål til ansatte, mer relevant informasjon på riktig skjerm.</li>
+    <li><strong>Driftsverdi:</strong> Sentral administrasjon, rask oppdatering av innhold, færre manuelle feil.</li>
+    <li><strong>Kommersiell verdi:</strong> Kombinerer operativ nytte (wayfinding) med inntektsmulighet via reklameflater.</li>
+  </ul>
+  <p><strong>Forretningsmodell:</strong> Abonnement per skjerm/lokasjon, modulprising (signage + wayfinding + integrasjoner), enterprise-avtaler og engangstjenester (kartproduksjon/implementering).</p>
+
+  <div class="kpi">
+    <div class="kpi-card"><div class="v">12 mnd</div><div class="l">8 betalende kunder, 70 installerte skjermer</div></div>
+    <div class="kpi-card"><div class="v">24 mnd</div><div class="l">22 kunder, 220 skjermer, 4 standardintegrasjoner</div></div>
+    <div class="kpi-card"><div class="v">36 mnd</div><div class="l">50 kunder, 600 skjermer, EBITDA rundt break-even/positiv</div></div>
+  </div>
+
+  <h2>2. Problemdefinisjon</h2>
+  <p><strong>Problemer produktet løser:</strong></p>
+  <ul>
+    <li>Besøkende finner ikke frem til riktig rom, avdeling eller butikk.</li>
+    <li>Trykt/manuell skilting blir raskt utdatert.</li>
+    <li>Mangel på sanntidsinformasjon ved endringer (stengte soner, kø, arrangementer).</li>
+    <li>Skjerminnhold og wayfinding styres ofte i separate verktøy uten felles datamodell.</li>
+    <li>Høy driftskostnad ved lokal manuell oppdatering.</li>
+  </ul>
+  <p><strong>Hvorfor dette er viktig:</strong></p>
+  <ul>
+    <li>Tidsbesparelse for både besøkende og ansatte.</li>
+    <li>Bedre flyt og høyere brukeropplevelse i bygget.</li>
+    <li>Mindre administrasjon, færre feil og raskere responstid ved endringer.</li>
+  </ul>
+
+  <h2>3. Produktbeskrivelse</h2>
+  <h3>Kjernefunksjoner (nåværende løsning)</h3>
+  <ul>
+    <li><strong>CMS/adminpanel:</strong> opplasting av reklamefiler, playlist-styring og publisering per installasjon.</li>
+    <li><strong>Wayfinding-modul:</strong> interaktive skjermbilder med hotspots, pulser og rutedemo.</li>
+    <li><strong>Multi-lokasjon:</strong> tenantmodell via <em>installSlug</em> (egne mapper og konfig per kunde/lokasjon).</li>
+    <li><strong>Rolle- og tilgangsstyring:</strong> Supabase Auth + tenant-sjekk via <em>user_roles.install_slug</em>.</li>
+    <li><strong>Automatisering:</strong> autosave for skjermeditor og polling av kampanjemateriell.</li>
+    <li><strong>Touch-first drift:</strong> kioskoptimalisert player med hardening, fallback og PWA installasjon.</li>
+  </ul>
+
+  <h3>Funksjoner i plan (neste fase)</h3>
+  <ul>
+    <li>Standard API-koblinger mot kalender/bookingsystem/køsystem.</li>
+    <li>QR-kobling fra skjerm til mobilvisning av rute/innhold.</li>
+    <li>Utvidet analysemodul (visninger, interaksjoner, driftstid, alarmspor).</li>
+    <li>Mer komplett offline-modus med robust synk ved nettverksbrudd.</li>
+  </ul>
+
+  <h3>USP (Unique Selling Points)</h3>
+  <ul>
+    <li><strong>Én plattform:</strong> signage + wayfinding i samme adminflyt.</li>
+    <li><strong>Byggtilpasset kartredigering:</strong> rask oppdatering av hotspots/pulser uten tung GIS-stack i MVP.</li>
+    <li><strong>Praktisk multi-tenant modell:</strong> enkel utrulling av flere lokasjoner med isolerte data.</li>
+    <li><strong>Driftsrobusthet:</strong> defensive fallbacks (idle/playlist/screens) for å redusere risiko for blank skjerm.</li>
+    <li><strong>Lav implementeringsfriksjon:</strong> statisk player + cloud backend gjør utrulling rask for pilotkunder.</li>
+  </ul>
+
+  <h2>4. Målgruppe og marked</h2>
+  <h3>Primære kundesegmenter</h3>
+  <ul>
+    <li>Sykehus og helseinstitusjoner</li>
+    <li>Utdanning/campus</li>
+    <li>Kjøpesentre og handelsparker</li>
+    <li>Transportknutepunkter</li>
+    <li>Store kontorbygg og næringsparker</li>
+    <li>Kulturhus, idrettsarenaer og hoteller</li>
+  </ul>
+
+  <h3>Markedsstørrelse (høy-nivå, internt estimat)</h3>
+  <table>
+    <tr><th>Mål</th><th>Definisjon</th><th>Nivå (indikativt)</th></tr>
+    <tr><td>TAM</td><td>Nordisk marked for digitale infoskjermer + wayfinding-relevante bygg</td><td>35 000–60 000 skjermer</td></tr>
+    <tr><td>SAM</td><td>Norge + utvalgte vertikaler i Norden første 3 år</td><td>8 000–12 000 skjermer</td></tr>
+    <tr><td>SOM (36 mnd)</td><td>Realistisk mål med partnerdrevet utrulling</td><td>600 skjermer</td></tr>
+  </table>
+  <p class="small muted">Markedet drives av digitalisering av byggforvaltning, økt fokus på brukeropplevelse i offentlige rom og etterspørsel etter sentralisert skjermdrift.</p>
+
+  <h2 class="break">5. Konkurrentanalyse</h2>
+  <p>Konkurrentbildet deles i direkte og indirekte alternativer.</p>
+  <table>
+    <tr>
+      <th>Kategori</th>
+      <th>Funksjonsomfang</th>
+      <th>Pris (indikativ)</th>
+      <th>Integrasjoner</th>
+      <th>Målgruppe</th>
+      <th>Styrker / svakheter</th>
+    </tr>
+    <tr>
+      <td>Direkte: Enterprise signage-plattformer</td>
+      <td>Sterk skjermstyring, moderat wayfinding</td>
+      <td>300–1 200 kr/skjerm/mnd + onboarding</td>
+      <td>Bred API-støtte, ofte enterprise-fokus</td>
+      <td>Store kjeder/offentlig sektor</td>
+      <td>+ Skalerbarhet, + moden drift / − ofte dyrt og komplekst</td>
+    </tr>
+    <tr>
+      <td>Direkte: Wayfinding-spesialister</td>
+      <td>Sterk kartmotor, svakere kampanje-CMS</td>
+      <td>Prosjekt + lisens (typisk høy oppstart)</td>
+      <td>God kart/GIS, varierende signage-kobling</td>
+      <td>Campus, sykehus, større bygg</td>
+      <td>+ Dyp navigasjon / − høy implementeringskost</td>
+    </tr>
+    <tr>
+      <td>Direkte: AV-leverandørens egne løsninger</td>
+      <td>Tilpasset prosjektleveranse</td>
+      <td>Prosjektbasert</td>
+      <td>Avhenger av leverandør</td>
+      <td>Bygg/eiendom med totalleveranse</td>
+      <td>+ Lokal tilstedeværelse / − mindre standardisert produkt</td>
+    </tr>
+    <tr>
+      <td>Indirekte: Trykket skilting</td>
+      <td>Ingen dynamikk/sanntid</td>
+      <td>Lav softwarekost, høy manuell kost</td>
+      <td>Ingen</td>
+      <td>Mindre bygg med lav endringstakt</td>
+      <td>+ Enkelt / − utdatert raskt</td>
+    </tr>
+    <tr>
+      <td>Indirekte: PowerPoint/PDF-loop</td>
+      <td>Enkel visning uten interaktiv wayfinding</td>
+      <td>Lav</td>
+      <td>Minimal</td>
+      <td>Små virksomheter</td>
+      <td>+ Billig start / − dårlig skalerbarhet og kontroll</td>
+    </tr>
+  </table>
+
+  <h2>6. Forretningsmodell</h2>
+  <h3>Inntektsmodeller</h3>
+  <ul>
+    <li><strong>Abonnement per skjerm:</strong> 790 kr (signage) + 390 kr (wayfinding) per skjerm/mnd.</li>
+    <li><strong>Modul for sanntidsintegrasjon:</strong> 290 kr/skjerm/mnd.</li>
+    <li><strong>Lokasjonsabonnement:</strong> minimum 2 990 kr/mnd per lokasjon.</li>
+    <li><strong>Enterprise-avtaler:</strong> rammeavtaler med volumpriser og SLA.</li>
+    <li><strong>Engangstjenester:</strong> kartproduksjon, design, implementering og opplæring.</li>
+  </ul>
+
+  <h3>Engangsprising (indikativ)</h3>
+  <table>
+    <tr><th>Tjeneste</th><th>Prisintervall</th></tr>
+    <tr><td>Kartproduksjon (2D)</td><td>35 000–120 000 kr per bygg</td></tr>
+    <tr><td>Kartproduksjon (3D, kompleks)</td><td>120 000–300 000 kr per bygg</td></tr>
+    <tr><td>Implementering/onboarding</td><td>15 000–80 000 kr per lokasjon</td></tr>
+    <tr><td>Integrasjonsarbeid</td><td>1 350–1 650 kr/time eller fastpris</td></tr>
+  </table>
+
+  <h3>Løpende kostnader</h3>
+  <ul>
+    <li>Cloud drift/hosting (Supabase + CDN/lagring)</li>
+    <li>Kartoppdateringer/design</li>
+    <li>Support og kundeservice</li>
+    <li>Integrasjonsvedlikehold og QA</li>
+  </ul>
+
+  <h2>7. Go-to-Market-strategi</h2>
+  <h3>Markedsføring</h3>
+  <ul>
+    <li>Demo-basert salg: korte webdemoer + kundespesifikke videodemoer.</li>
+    <li>Bransjearenaer: eiendom, helse, utdanning, reiseliv og AV/Pro-Display.</li>
+    <li>SEO/innhold: digital signage, infotavler, wayfinding, interaktivt kart.</li>
+    <li>Kundecaser fra pilot for å redusere opplevd risiko hos nye kjøpere.</li>
+  </ul>
+
+  <h3>Salgsstrategi</h3>
+  <ul>
+    <li>Direktesalg mot eiendomsselskaper, kjøpesentre og offentlige institusjoner.</li>
+    <li>Kanalpartnere: AV-leverandører, kiosk/hardware-leverandører, IT-konsulenter.</li>
+    <li>Rammeavtaler for kjeder med flere lokasjoner.</li>
+    <li>Salgstrakt med tydelig stage-gating: Discovery → POC → Pilot → Betalende utrulling.</li>
+  </ul>
+
+  <h3>Onboardingmodell</h3>
+  <ol>
+    <li>Oppstartsmøte + sjekkliste (innhold, skjermer, nettverk, sikkerhet).</li>
+    <li>Kartproduksjon (2D/3D) + kvalitetssikring i lokasjon.</li>
+    <li>Workshop for redaktører/administratorer.</li>
+    <li>Go-live med supportvindu og opplæringsvideoer.</li>
+  </ol>
+
+  <h2 class="break">8. Teknologi og produktutvikling</h2>
+  <h3>Arkitektur (nå)</h3>
+  <ul>
+    <li><strong>Cloud-basert admin:</strong> statisk adminpanel i drift, med separat Next.js-spor for videre SaaS-utvikling.</li>
+    <li><strong>Player-app:</strong> kioskvennlig webplayer (PWA installbar) for touchskjermer.</li>
+    <li><strong>API/data:</strong> Supabase Auth + Storage, JSON-baserte konfigfiler per installasjon.</li>
+    <li><strong>Kartmotor:</strong> 2D interaktive kart med hotspots/pulses og rutedemo.</li>
+    <li><strong>Fallback:</strong> robust fallback for innhold/playlist/skjermkonfig for å unngå blank skjerm.</li>
+  </ul>
+
+  <h3>Roadmap (realistisk)</h3>
+  <table>
+    <tr><th>Periode</th><th>Leveranser</th><th>Målbare KPI-er</th></tr>
+    <tr>
+      <td>0–6 mnd</td>
+      <td>Stabilisert MVP: skjermstyring + karteditor + policy/tenant-hardening + staging/prod-løp</td>
+      <td>99,5% player-oppetid i pilot, < 2 kritiske feil/mnd</td>
+    </tr>
+    <tr>
+      <td>6–12 mnd</td>
+      <td>Standardintegrasjoner (kalender/booking), sanntidswidgeter, forbedret rollemodell</td>
+      <td>4 standardintegrasjoner, 8 betalende kunder</td>
+    </tr>
+    <tr>
+      <td>12+ mnd</td>
+      <td>Mobil/QR-opplevelse, IoT/data feeds, analytics-dashboards, enterprise SLA</td>
+      <td>50 kunder, 600 skjermer, NRR > 105%</td>
+    </tr>
+  </table>
+
+  <h2>9. Team og roller</h2>
+  <p><strong>Anbefalt team for 12–18 mnd:</strong></p>
+  <table>
+    <tr><th>Rolle</th><th>Ansvar</th><th>Kapasitet</th></tr>
+    <tr><td>Produktleder</td><td>Roadmap, prioritering, kundeinnsikt</td><td>1,0 FTE</td></tr>
+    <tr><td>UX/UI</td><td>Editorflyt, kioskopplevelse, designsystem</td><td>0,5–1,0 FTE</td></tr>
+    <tr><td>Frontend/backend utvikling</td><td>Player, admin, API og integrasjoner</td><td>2,0–3,0 FTE</td></tr>
+    <tr><td>Kartdesigner/GIS</td><td>Kartproduksjon og kvalitet</td><td>0,5–1,0 FTE</td></tr>
+    <tr><td>Salg + partneransvar</td><td>Pilotkonvertering, kanalpartnere, pipeline</td><td>1,0–1,5 FTE</td></tr>
+    <tr><td>Support/implementering</td><td>Onboarding, opplæring, kundedrift</td><td>1,0 FTE</td></tr>
+  </table>
+
+  <h2>10. Finansielle prognoser</h2>
+  <h3>Nøkkelforutsetninger</h3>
+  <ul>
+    <li>Blended ARPU: 1 350 kr/skjerm/mnd (signage + wayfinding + andel integrasjoner).</li>
+    <li>Gjennomsnitt skjermer per kunde: 8–12 avhengig av segment.</li>
+    <li>Engangsinntekt per ny kunde: 60 000–80 000 kr.</li>
+    <li>Bruttomargin: 78% på abonnement, 45% på engangstjenester.</li>
+    <li>Kundetilvekst er pipeline-basert (pilot → utrulling + partnerkanaler).</li>
+  </ul>
+
+  <h3>Prognose (12–36 mnd)</h3>
+  <table>
+    <tr>
+      <th>Metrikk</th>
+      <th>År 1 (0–12 mnd)</th>
+      <th>År 2 (13–24 mnd)</th>
+      <th>År 3 (25–36 mnd)</th>
+    </tr>
+    <tr><td>Betalende kunder (slutt periode)</td><td>8</td><td>22</td><td>50</td></tr>
+    <tr><td>Installert skjermbase (slutt periode)</td><td>70</td><td>220</td><td>600</td></tr>
+    <tr><td>Gjennomsnitt aktive skjermer</td><td>45</td><td>150</td><td>420</td></tr>
+    <tr><td>Abonnementsinntekt</td><td>0,73 MNOK</td><td>2,43 MNOK</td><td>6,80 MNOK</td></tr>
+    <tr><td>Engangsinntekt (kart/implementering)</td><td>0,56 MNOK</td><td>0,98 MNOK</td><td>1,68 MNOK</td></tr>
+    <tr><td>Total inntekt</td><td>1,29 MNOK</td><td>3,41 MNOK</td><td>8,48 MNOK</td></tr>
+    <tr><td>Estimert OPEX</td><td>3,00 MNOK</td><td>4,40 MNOK</td><td>5,90 MNOK</td></tr>
+    <tr><td>EBITDA (estimert)</td><td>-2,18 MNOK</td><td>-2,06 MNOK</td><td>+0,16 MNOK</td></tr>
+  </table>
+
+  <h3>Break-even og investeringsbehov</h3>
+  <ul>
+    <li><strong>Break-even:</strong> forventes rundt slutten av år 3 ved 350–430 gjennomsnitt aktive skjermer.</li>
+    <li><strong>Kapitalbehov:</strong> 6,2 MNOK for 18–24 måneders runway.</li>
+  </ul>
+  <table>
+    <tr><th>Investeringsområde</th><th>Beløp (MNOK)</th></tr>
+    <tr><td>Produktutvikling (player/admin/integrasjoner)</td><td>2,2</td></tr>
+    <tr><td>Kart/GIS-produksjon og metodikk</td><td>1,0</td></tr>
+    <tr><td>Salg, marked og partnerkanal</td><td>1,8</td></tr>
+    <tr><td>Sikkerhet, drift og compliance</td><td>0,7</td></tr>
+    <tr><td>Arbeidskapital/buffer</td><td>0,5</td></tr>
+    <tr><th>Totalt</th><th>6,2</th></tr>
+  </table>
+
+  <h2>11. Risikoanalyse</h2>
+  <table>
+    <tr><th>Risiko</th><th>Effekt</th><th>Tiltak</th></tr>
+    <tr>
+      <td>Avhengighet av tredjeparts maskinvare</td>
+      <td>Ustabil avspilling, supportkost</td>
+      <td>Godkjent hardwareliste, standardisert kiosk-oppsett, partner med AV-leverandører</td>
+    </tr>
+    <tr>
+      <td>Driftsstabilitet i krevende miljø</td>
+      <td>Nedetid og dårlig kundeopplevelse</td>
+      <td>Watchdog/fallback i player, staging/prod-regime, monitorering og tydelig SLA</td>
+    </tr>
+    <tr>
+      <td>Sikkerhet i offentlige skjermer</td>
+      <td>Misbruk eller innholdsmanipulasjon</td>
+      <td>Auth + tenant-sjekk, inputvalidering, policyherding, key-rotation og RLS</td>
+    </tr>
+    <tr>
+      <td>Kostnader ved kartproduksjon</td>
+      <td>Lav margin i tidlig fase</td>
+      <td>Standard malverk, gjenbrukbare komponenter, delvis partnerleveranse</td>
+    </tr>
+    <tr>
+      <td>Konkurranse fra store signage-aktører</td>
+      <td>Prispress og lang salgsprosess</td>
+      <td>Vertikal fokus, raskere implementering, sterk lokal tilpasning og support</td>
+    </tr>
+    <tr>
+      <td>Avhengighet av Supabase og eksterne API-er</td>
+      <td>Driftsforstyrrelser ved tredjepartsfeil</td>
+      <td>Fallback-strategi, redundansplan, gradvis flytting av kritisk metadata til DB</td>
+    </tr>
+  </table>
+
+  <div class="note">
+    <strong>Merk:</strong> Tall i denne planen er realistiske arbeidsestimater basert på nåværende produktmodenhet, pilotstatus og intern gjennomgang per 04.03.2026. Ved investorprosess anbefales kvartalsvis oppdatering med faktiske pilot-KPI-er (uptime, brukerinteraksjoner, onboarding-tid, churn og betalingsvilje).
+  </div>
+</body>
+</html>
