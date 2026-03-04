@@ -248,6 +248,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await refreshPlaylistEditor();
 
   bindWeatherSettingsModal();
+  bindLayoutSettingsModal();
 
   // demo orientation/weather controls
   const orientRadios = document.querySelectorAll('input[name="orientation"]');
@@ -323,6 +324,14 @@ async function refreshWeatherSettings() {
   }
 }
 
+async function refreshLayoutSettings() {
+  const containerEl = document.getElementById('layoutSettings');
+  if (!containerEl) return;
+  if (typeof renderLayoutSettings === 'function') {
+    await renderLayoutSettings(containerEl);
+  }
+}
+
 function bindWeatherSettingsModal() {
   const openBtn = document.getElementById('weatherSettingsOpenBtn');
   const closeBtn = document.getElementById('weatherSettingsCloseBtn');
@@ -336,6 +345,27 @@ function bindWeatherSettingsModal() {
   openBtn.addEventListener('click', async () => {
     modalEl.classList.remove('hidden');
     await refreshWeatherSettings();
+  });
+
+  closeBtn.addEventListener('click', closeModal);
+  modalEl.addEventListener('click', (event) => {
+    if (event.target === modalEl) closeModal();
+  });
+}
+
+function bindLayoutSettingsModal() {
+  const openBtn = document.getElementById('layoutSettingsOpenBtn');
+  const closeBtn = document.getElementById('layoutSettingsCloseBtn');
+  const modalEl = document.getElementById('layoutSettingsModal');
+  if (!openBtn || !closeBtn || !modalEl) return;
+
+  const closeModal = () => {
+    modalEl.classList.add('hidden');
+  };
+
+  openBtn.addEventListener('click', async () => {
+    modalEl.classList.remove('hidden');
+    await refreshLayoutSettings();
   });
 
   closeBtn.addEventListener('click', closeModal);

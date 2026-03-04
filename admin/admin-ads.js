@@ -97,6 +97,53 @@ async function storageFileExists(bucket, folderPath, fileName) {
   return data.some((item) => item?.name === fileName);
 }
 
+function getSettingsPath(installSlug) {
+  return `installs/${installSlug}/assets/settings.json`;
+}
+
+async function loadInstallSettings() {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return {};
+    const cfg = getCfg();
+    const assetsFolder = `installs/${cfg.installSlug}/assets`;
+    const hasSettings = await storageFileExists(cfg.bucket, assetsFolder, 'settings.json');
+    if (!hasSettings) return {};
+
+    const settingsPath = getSettingsPath(cfg.installSlug);
+    const { data, error } = await supabase.storage.from(cfg.bucket).download(settingsPath);
+    if (error || !data) return {};
+
+    const text = await data.text();
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (e) {
+    console.warn('[SETTINGS] Load error:', e.message);
+    return {};
+  }
+}
+
+async function saveInstallSettings(nextSettings) {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error('Supabase not ready');
+
+    const cfg = getCfg();
+    const settingsPath = getSettingsPath(cfg.installSlug);
+    const json = JSON.stringify(nextSettings || {}, null, 2);
+
+    const { error } = await supabase.storage
+      .from(cfg.bucket)
+      .update(settingsPath, new Blob([json], { type: 'application/json' }), { upsert: true });
+
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.error('[SETTINGS] Save error:', e.message);
+    return false;
+  }
+}
+
 /** Load ads list from storage */
 async function loadAds() {
   const supabase = getSupabase();
@@ -617,7 +664,7 @@ async function renderWeatherSettings(containerEl) {
         <input id="weatherLocation" type="text" placeholder="F.eks. Trondheim, NO" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
       </div>
       <button id="saveWeatherBtn" class="btn btn-primary" style="width: 100%;">Lagre værinnstillinger</button>
-      <p style="font-size: 12px; color: var(--text-muted); margin: 0;">💡 Tipp: Været hentes fra API når aktivert</p>
+      <p style="font-size: 12px; color: var(--text-muted); margin: 0;">💡 Tipp: Vær-API-kobling i player er neste steg (innstillinger lagres allerede)</p>
     </div>
   `;
   html += '</div>';
@@ -626,24 +673,10 @@ async function renderWeatherSettings(containerEl) {
   
   // Load current settings
   try {
-    const supabase = getSupabase();
-    if (supabase) {
-      const cfg = getCfg();
-      const assetsFolder = `installs/${cfg.installSlug}/assets`;
-      const hasSettings = await storageFileExists(cfg.bucket, assetsFolder, 'settings.json');
-      if (hasSettings) {
-        const settingsPath = `installs/${cfg.installSlug}/assets/settings.json`;
-        const { data, error } = await supabase.storage.from(cfg.bucket).download(settingsPath);
-
-        if (!error && data) {
-          const text = await data.text();
-          const settings = JSON.parse(text);
-          if (settings.weather) {
-            document.getElementById('weatherEnabled').checked = settings.weather.enabled;
-            document.getElementById('weatherLocation').value = settings.weather.location || 'Trondheim, NO';
-          }
-        }
-      }
+    const settings = await loadInstallSettings();
+    if (settings.weather) {
+      document.getElementById('weatherEnabled').checked = settings.weather.enabled;
+      document.getElementById('weatherLocation').value = settings.weather.location || 'Trondheim, NO';
     }
   } catch (e) {
     console.warn('[WEATHER] Load error:', e.message);
@@ -654,25 +687,16 @@ async function renderWeatherSettings(containerEl) {
   if (saveBtn) {
     saveBtn.addEventListener('click', async () => {
       try {
-        const supabase = getSupabase();
-        if (!supabase) throw new Error('Supabase not ready');
-        
-        const cfg = getCfg();
         const enabled = document.getElementById('weatherEnabled').checked;
         const location = document.getElementById('weatherLocation').value || 'Trondheim, NO';
-        
-        const settings = {
-          weather: { enabled, location }
-        };
-        
-        const settingsPath = `installs/${cfg.installSlug}/assets/settings.json`;
-        const json = JSON.stringify(settings, null, 2);
-        
-        const { error } = await supabase.storage
-          .from(cfg.bucket)
-          .update(settingsPath, new Blob([json], { type: 'application/json' }), { upsert: true });
-        
-        if (error) throw error;
+
+        const current = await loadInstallSettings();
+        const success = await saveInstallSettings({
+          ...current,
+          weather: { enabled, location },
+        });
+
+        if (!success) throw new Error('Save failed');
         alert('✅ Værinnstillinger lagret!');
       } catch (e) {
         console.error('[WEATHER] Save error:', e);
@@ -680,4 +704,61 @@ async function renderWeatherSettings(containerEl) {
       }
     });
   }
+}
+
+async function renderLayoutSettings(containerEl) {
+  if (!containerEl) return;
+
+  containerEl.innerHTML = `
+    <div style="padding: 16px; background: var(--bg); border-radius: 8px;">
+      <h3 style="margin-top: 0; margin-bottom: 8px;">Skjermlayout</h3>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Velg standard oppsett for hvordan skjermen kan deles i soner.</p>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div>
+          <label style="display: block; margin-bottom: 4px; font-size: 13px;">Layout-modus:</label>
+          <select id="layoutMode" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+            <option value="default">Standard (normal fullskjerm)</option>
+            <option value="bottom-weather">Delt: værstripe nederst</option>
+            <option value="split-ads-weather">Delt: reklame venstre / vær høyre</option>
+          </select>
+        </div>
+        <button id="saveLayoutBtn" class="btn btn-primary" style="width: 100%;">Lagre layoutvalg</button>
+        <p id="layoutSaveStatus" class="message" style="margin: 0;"></p>
+        <p style="font-size: 12px; color: var(--text-muted); margin: 0;">💡 Layout lagres per installasjon. Visuell split-render i player kan bygges ut stegvis.</p>
+      </div>
+    </div>
+  `;
+
+  const selectEl = containerEl.querySelector('#layoutMode');
+  const saveBtn = containerEl.querySelector('#saveLayoutBtn');
+  const statusEl = containerEl.querySelector('#layoutSaveStatus');
+  if (!selectEl || !saveBtn) return;
+
+  try {
+    const settings = await loadInstallSettings();
+    const currentMode = settings?.screenLayout?.mode || 'default';
+    selectEl.value = ['default', 'bottom-weather', 'split-ads-weather'].includes(currentMode)
+      ? currentMode
+      : 'default';
+  } catch (e) {
+    console.warn('[LAYOUT] Load error:', e.message);
+  }
+
+  saveBtn.addEventListener('click', async () => {
+    const mode = selectEl.value || 'default';
+    if (statusEl) statusEl.textContent = 'Lagrer layout…';
+
+    const current = await loadInstallSettings();
+    const success = await saveInstallSettings({
+      ...current,
+      screenLayout: {
+        mode,
+        updatedAt: new Date().toISOString(),
+      },
+    });
+
+    if (statusEl) {
+      statusEl.textContent = success ? '✅ Layout lagret' : '❌ Klarte ikke lagre layout';
+    }
+  });
 }

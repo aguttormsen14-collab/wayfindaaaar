@@ -195,7 +195,10 @@
                 <h3 class="card-title">Skjerminnstillinger</h3>
                 <p class="card-subtitle">Velg orientering og grunninnstillinger</p>
               </div>
-              <button id="weatherSettingsOpenBtn" class="btn btn-secondary btn-sm" type="button">⚙️ Værinnstillinger</button>
+              <div class="screen-settings-header-actions">
+                <button id="layoutSettingsOpenBtn" class="btn btn-secondary btn-sm" type="button">🧩 Skjermlayout</button>
+                <button id="weatherSettingsOpenBtn" class="btn btn-secondary btn-sm" type="button">⚙️ Værinnstillinger</button>
+              </div>
             </div>
             <div class="card-body">
               <div class="screen-settings-top">
@@ -425,14 +428,26 @@
     </div>
   </div>
 
+  <div id="layoutSettingsModal" class="screen-editor-confirm hidden" role="dialog" aria-modal="true" aria-labelledby="layoutSettingsTitle">
+    <div class="screen-editor-confirm-card weather-settings-modal-card">
+      <h4 id="layoutSettingsTitle" class="screen-editor-confirm-title">Skjermlayout</h4>
+      <div id="layoutSettings" class="weather-settings-modal-body">
+        <p class="text-muted">Laster…</p>
+      </div>
+      <div class="screen-editor-confirm-actions">
+        <button id="layoutSettingsCloseBtn" class="btn btn-secondary btn-sm" type="button">Lukk</button>
+      </div>
+    </div>
+  </div>
+
   <!-- SCRIPTS -->
   <script src="../base-path.js"></script>
   <script src="../config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../supabase-config.js"></script>
   <script src="./admin-auth-supabase.js"></script>
-  <script src="./admin-ads.js?v=20260304-2"></script>
-  <script src="./dashboard.js?v=222"></script>
+  <script src="./admin-ads.js?v=20260304-3"></script>
+  <script src="./dashboard.js?v=223"></script>
   
   <script>
     const params = new URLSearchParams(location.search);

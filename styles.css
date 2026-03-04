@@ -7,6 +7,30 @@ html, body {
   touch-action: manipulation;
 }
 
+:root {
+  --player-main-right: 0px;
+  --player-main-bottom: 0px;
+  --player-weather-size: 0px;
+}
+
+body.layout-default {
+  --player-main-right: 0px;
+  --player-main-bottom: 0px;
+  --player-weather-size: 0px;
+}
+
+body.layout-bottom-weather {
+  --player-main-right: 0px;
+  --player-main-bottom: clamp(120px, 18vh, 210px);
+  --player-weather-size: clamp(120px, 18vh, 210px);
+}
+
+body.layout-split-ads-weather {
+  --player-main-right: clamp(220px, 30vw, 420px);
+  --player-main-bottom: 0px;
+  --player-weather-size: clamp(220px, 30vw, 420px);
+}
+
 #app {
   position: fixed;
   inset: 0;
@@ -14,7 +38,10 @@ html, body {
 
 #screen {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: var(--player-main-right);
+  bottom: var(--player-main-bottom);
   background: black center / contain no-repeat;
   z-index: 0;
   pointer-events: none;
@@ -279,7 +306,10 @@ html, body {
 /* ads overlay layer */
 .ads-layer {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: var(--player-main-right);
+  bottom: var(--player-main-bottom);
   z-index: 8000;
   pointer-events: none;
   opacity: 0;
@@ -302,13 +332,72 @@ html, body {
 /* tap catcher sitting above ad visuals */
 .ads-tap {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: var(--player-main-right);
+  bottom: var(--player-main-bottom);
   z-index: 9996; /* above ads visuals (8000), below modals (9999) */
   background: transparent;
   pointer-events: none;
   display: block;
 }
 .ads-tap.hidden { display: none !important; }
+
+.player-weather-panel {
+  position: fixed;
+  z-index: 6;
+  background: linear-gradient(180deg, rgba(10, 15, 24, 0.94) 0%, rgba(17, 24, 39, 0.94) 100%);
+  color: #e5e7eb;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.player-weather-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.player-weather-title {
+  margin: 0;
+  font-size: clamp(13px, 1.7vw, 18px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.player-weather-status {
+  margin: 0;
+  font-size: clamp(12px, 1.5vw, 16px);
+  opacity: 0.92;
+}
+
+body.layout-bottom-weather .player-weather-panel {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--player-weather-size);
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+}
+
+body.layout-split-ads-weather .player-weather-panel {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--player-weather-size);
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+}
 
 /* admin shortcut link, visible only in debug mode */
 #adminLink {

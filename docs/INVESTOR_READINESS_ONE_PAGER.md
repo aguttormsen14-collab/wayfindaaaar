@@ -22,7 +22,7 @@ Kjernen fungerer: interaktiv wayfinding, popup-editor, reklamestyring, spillelis
 
 ### Produkt og brukeropplevelse
 - Stabil spillerflyt mellom idle, kart, popup og reklame.
-- Adminpanel med reell verdileveranse: opplasting/sletting av assets, spilleliste, værinnstillinger, wayfinder-konfig.
+- Adminpanel med reell verdileveranse: opplasting/sletting av assets, spilleliste, wayfinder-konfig og værinnstillinger (konfig-lagring).
 - Demo-/presentasjonsfunksjoner (f.eks. rute-demo) for salgsmøter.
 
 ### Teknisk fundament
@@ -50,6 +50,8 @@ Disse punktene bør kommuniseres ærlig som "neste fase":
    - Sentral feilsporing og enkel install-statusdashboard.
 5. **Miljøseparasjon**
    - Strammere dev/staging/prod-disciplin for tryggere releases.
+6. **Vær-API kobling ferdigstilles**
+   - Eksisterende værinnstillinger lagres, men faktisk API-henting/render i player må implementeres.
 
 ---
 

@@ -885,6 +885,12 @@ body {
   padding-bottom: 2px;
 }
 
+.screen-settings-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
 .screen-settings-top {
   display: flex;
   flex-direction: column;

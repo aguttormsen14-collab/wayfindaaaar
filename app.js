@@ -242,6 +242,22 @@ const SCREENS_DEFAULT = cloneJson(SCREENS);
 const SCREEN_ORDER_DEFAULT = [...SCREEN_ORDER];
 let screensConfigSource = 'hardcoded';
 const SCREENS_CONFIG_FILE = 'screens.json';
+const PLAYER_SETTINGS_FILE = 'settings.json';
+const LAYOUT_MODE_DEFAULT = 'default';
+const PLAYER_LAYOUT_MODES = new Set(['default', 'bottom-weather', 'split-ads-weather']);
+const PLAYER_SETTINGS_DEFAULT = Object.freeze({
+  weather: Object.freeze({
+    enabled: false,
+    location: 'Trondheim, NO',
+  }),
+  screenLayout: Object.freeze({
+    mode: LAYOUT_MODE_DEFAULT,
+  }),
+});
+let playerSettings = {
+  weather: { ...PLAYER_SETTINGS_DEFAULT.weather },
+  screenLayout: { ...PLAYER_SETTINGS_DEFAULT.screenLayout },
+};
 const SCREENS_AUTOSAVE_DELAY_MS = 700;
 let screensAutosaveTimer = null;
 let screensSaveInFlight = false;
@@ -577,6 +593,143 @@ async function loadScreensConfigFromSupabase() {
   } catch (e) {
     console.warn('[SCREENS] Error while loading screens.json, using hardcoded config:', e?.message || e);
     resetToDefaultScreensConfig();
+    return false;
+  }
+}
+
+function ensureWeatherPanel() {
+  let panel = document.getElementById('playerWeatherPanel');
+  if (panel) return panel;
+
+  panel = document.createElement('section');
+  panel.id = 'playerWeatherPanel';
+  panel.className = 'player-weather-panel hidden';
+  panel.setAttribute('aria-live', 'polite');
+  panel.innerHTML = `
+    <div class="player-weather-inner">
+      <p id="playerWeatherTitle" class="player-weather-title">Vær</p>
+      <p id="playerWeatherStatus" class="player-weather-status">Widget er ikke aktivert</p>
+    </div>
+  `;
+  document.body.appendChild(panel);
+  return panel;
+}
+
+function getLayoutModeFromSettings(settings) {
+  const mode = String(settings?.screenLayout?.mode || LAYOUT_MODE_DEFAULT).trim();
+  return PLAYER_LAYOUT_MODES.has(mode) ? mode : LAYOUT_MODE_DEFAULT;
+}
+
+function applyPlayerLayoutMode(mode) {
+  const body = document.body;
+  if (!body) return;
+
+  body.classList.remove('layout-default', 'layout-bottom-weather', 'layout-split-ads-weather');
+
+  switch (mode) {
+    case 'bottom-weather':
+      body.classList.add('layout-bottom-weather');
+      break;
+    case 'split-ads-weather':
+      body.classList.add('layout-split-ads-weather');
+      break;
+    default:
+      body.classList.add('layout-default');
+      break;
+  }
+}
+
+function applyWeatherPanelFromSettings(settings) {
+  const panel = ensureWeatherPanel();
+  const titleEl = document.getElementById('playerWeatherTitle');
+  const statusEl = document.getElementById('playerWeatherStatus');
+  const mode = getLayoutModeFromSettings(settings);
+  const weatherEnabled = settings?.weather?.enabled === true;
+  const location = String(settings?.weather?.location || PLAYER_SETTINGS_DEFAULT.weather.location);
+
+  if (mode === 'default') {
+    panel.classList.add('hidden');
+    return;
+  }
+
+  panel.classList.remove('hidden');
+  if (titleEl) {
+    titleEl.textContent = mode === 'split-ads-weather' ? 'Vær (høyre sone)' : 'Vær (nederst)';
+  }
+  if (statusEl) {
+    statusEl.textContent = weatherEnabled
+      ? `${location} · Vær-API ikke koblet enda (placeholder)`
+      : 'Widget er av i innstillinger';
+  }
+}
+
+function normalizePlayerSettings(raw) {
+  const weatherEnabled = raw?.weather?.enabled === true;
+  const locationRaw = String(raw?.weather?.location || PLAYER_SETTINGS_DEFAULT.weather.location).trim();
+  const location = locationRaw || PLAYER_SETTINGS_DEFAULT.weather.location;
+  const mode = getLayoutModeFromSettings(raw);
+
+  return {
+    weather: {
+      enabled: weatherEnabled,
+      location,
+    },
+    screenLayout: {
+      mode,
+    },
+  };
+}
+
+function applyPlayerSettings(raw) {
+  playerSettings = normalizePlayerSettings(raw);
+  applyPlayerLayoutMode(playerSettings.screenLayout.mode);
+  applyWeatherPanelFromSettings(playerSettings);
+}
+
+async function loadPlayerSettingsFromSupabase() {
+  const supabase = getSupabase();
+  if (!supabase || typeof window.getSupabaseConfig !== 'function') {
+    applyPlayerSettings(PLAYER_SETTINGS_DEFAULT);
+    return false;
+  }
+
+  const cfg = window.getSupabaseConfig();
+  if (!cfg || !cfg.bucket || !cfg.installSlug) {
+    applyPlayerSettings(PLAYER_SETTINGS_DEFAULT);
+    return false;
+  }
+
+  const folderPath = `installs/${cfg.installSlug}/assets`;
+  const fileName = PLAYER_SETTINGS_FILE;
+  const filePath = `${folderPath}/${fileName}`;
+
+  try {
+    const { data: folderItems, error: folderErr } = await supabase.storage.from(cfg.bucket).list(folderPath, {
+      limit: 200,
+      offset: 0,
+    });
+
+    const exists = !folderErr && Array.isArray(folderItems) && folderItems.some((item) => item?.name === fileName);
+    if (!exists) {
+      applyPlayerSettings(PLAYER_SETTINGS_DEFAULT);
+      return false;
+    }
+
+    const { data, error } = await supabase.storage.from(cfg.bucket).download(filePath);
+    if (error || !data) {
+      console.warn('[SETTINGS] Failed to download settings.json, using defaults:', error?.message || error);
+      applyPlayerSettings(PLAYER_SETTINGS_DEFAULT);
+      return false;
+    }
+
+    const text = await data.text();
+    const parsed = JSON.parse(text);
+    applyPlayerSettings(parsed);
+    console.log('[SETTINGS] Loaded player settings from Supabase:', filePath);
+    return true;
+  } catch (e) {
+    console.warn('[SETTINGS] Error while loading settings.json, using defaults:', e?.message || e);
+    applyPlayerSettings(PLAYER_SETTINGS_DEFAULT);
     return false;
   }
 }
@@ -2248,6 +2401,8 @@ function init(){
 
   // setup onboarding UI elements
   createTouchHint();
+  ensureWeatherPanel();
+  applyPlayerSettings(PLAYER_SETTINGS_DEFAULT);
   // create tap catcher early (will stay hidden until ads play)
   const catcher = document.createElement('div');
   catcher.id = 'adsTapCatcher';
@@ -2446,7 +2601,10 @@ function startWhenSupabaseReady(){
 
   if (!screensConfigInitialized) {
     screensConfigInitialized = true;
-    loadScreensConfigFromSupabase()
+    Promise.all([
+      loadScreensConfigFromSupabase(),
+      loadPlayerSettingsFromSupabase(),
+    ])
       .then(() => {
         if (currentScreen) {
           const nextScreen = SCREENS[currentScreen] ? currentScreen : 'idle';
@@ -2473,6 +2631,11 @@ window.__kiosk = {
   setScreen,
   SCREENS,
   SCREEN_ORDER,
+  getPlayerSettings: () => ({
+    weather: { ...playerSettings.weather },
+    screenLayout: { ...playerSettings.screenLayout },
+  }),
+  loadPlayerSettingsFromSupabase,
   setDebugMode,
   loadScreensConfigFromSupabase,
   saveScreensConfigToSupabase,
