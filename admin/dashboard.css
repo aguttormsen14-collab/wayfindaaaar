@@ -813,6 +813,18 @@ body {
   margin-top: 8px;
 }
 
+.weather-settings-modal-card {
+  width: min(720px, 92vw);
+}
+
+.weather-settings-modal-body {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  padding: var(--space);
+  margin-top: 2px;
+}
+
 /* ===== FORM ELEMENTS ===== */
 .form-group {
   margin-bottom: 0;

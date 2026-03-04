@@ -262,9 +262,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // AUDIT: Init playlist editor
   await refreshPlaylistEditor();
-  
-  // AUDIT: Init weather settings
-  await refreshWeatherSettings();
+
+  bindWeatherSettingsModal();
 
   // demo orientation/weather controls
   const orientRadios = document.querySelectorAll('input[name="orientation"]');
@@ -482,6 +481,27 @@ async function refreshWeatherSettings() {
   if (typeof renderWeatherSettings === 'function') {
     await renderWeatherSettings(containerEl);
   }
+}
+
+function bindWeatherSettingsModal() {
+  const openBtn = document.getElementById('weatherSettingsOpenBtn');
+  const closeBtn = document.getElementById('weatherSettingsCloseBtn');
+  const modalEl = document.getElementById('weatherSettingsModal');
+  if (!openBtn || !closeBtn || !modalEl) return;
+
+  const closeModal = () => {
+    modalEl.classList.add('hidden');
+  };
+
+  openBtn.addEventListener('click', async () => {
+    modalEl.classList.remove('hidden');
+    await refreshWeatherSettings();
+  });
+
+  closeBtn.addEventListener('click', closeModal);
+  modalEl.addEventListener('click', (event) => {
+    if (event.target === modalEl) closeModal();
+  });
 }
 
 async function updateStatusPanel() {
