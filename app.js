@@ -118,15 +118,25 @@ let editMode = false; // true while ArrowDown is held
 // demo fullscreen (Android tablet, non-kiosk) - safe, one-time attempt
 let demoFullscreenArmed = true;
 function demoLog(msg){ if (DEBUG) console.log(msg); }
-function tryDemoFullscreenOnce(){
-  if (!demoFullscreenArmed) return;
+function tryDemoFullscreenOnce(force = false){
+  if (!demoFullscreenArmed && !force) return;
   if (currentScreen !== "idle") return;
-  demoFullscreenArmed = false;
   const el = document.documentElement;
+  if (!el || !el.requestFullscreen || document.fullscreenElement) return;
   if (!document.fullscreenElement && el && el.requestFullscreen) {
-    el.requestFullscreen().then(() => demoLog("[DEMO] fullscreen ok"))
-      .catch(() => demoLog("[DEMO] fullscreen failed"));
+    el.requestFullscreen().then(() => {
+      demoLog("[DEMO] fullscreen ok");
+      demoFullscreenArmed = false;
+    }).catch(() => demoLog("[DEMO] fullscreen failed"));
   }
+}
+
+function isIdleLeftFullscreenGesture(ev) {
+  if (currentScreen !== 'idle') return false;
+  const x = Number(ev?.clientX);
+  if (!Number.isFinite(x)) return false;
+  const threshold = Math.max(120, window.innerWidth * 0.25);
+  return x <= threshold;
 }
 
 // Install loader (select which install's assets to use)
@@ -1096,6 +1106,11 @@ safeSetBackground(config.bg);
       if (DEBUG && editMode) { ev.stopPropagation(); ev.preventDefault(); return; }
       ev.stopPropagation();
       ev.preventDefault();
+
+      if (screenName === 'idle' && isIdleLeftFullscreenGesture(ev)) {
+        tryDemoFullscreenOnce(true);
+        return;
+      }
 
       resetIdleTimer();
 
