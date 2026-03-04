@@ -1,5 +1,7 @@
 // admin/admin-ads.js — Supabase ads management (library only, no auto-init)
 
+let cachedAds = [];
+
 // ===== SECURITY: HTML escape helper (XSS prevention) =====
 function escapeHtml(text) {
   const map = {
@@ -282,17 +284,54 @@ async function deleteFile(fullPath) {
 async function renderAdsList(containerEl, messageEl) {
   if (!containerEl) return;
 
-  containerEl.innerHTML = '<p>Laster…</p>';
+  containerEl.innerHTML = '<div class="asset-empty">Laster reklamefiler…</div>';
   const ads = await loadAds();
+  cachedAds = ads;
 
-  if (ads.length === 0) {
+  const searchEl = document.getElementById('adsSearch');
+  if (searchEl && !searchEl.dataset.adsSearchBound) {
+    searchEl.dataset.adsSearchBound = '1';
+    searchEl.addEventListener('input', () => {
+      renderAdsListFromCache(containerEl);
+    });
+  }
+
+  renderAdsListFromCache(containerEl);
+}
+
+function renderAdsListFromCache(containerEl) {
+  if (!containerEl) return;
+
+  const summaryEl = document.getElementById('adsSummary');
+  const searchEl = document.getElementById('adsSearch');
+  const query = String(searchEl?.value || '').trim().toLowerCase();
+
+  const filteredAds = query
+    ? cachedAds.filter((ad) => String(ad.name || '').toLowerCase().includes(query))
+    : cachedAds;
+
+  if (summaryEl) {
+    const total = cachedAds.length;
+    const shown = filteredAds.length;
+    summaryEl.textContent = query
+      ? `Viser ${shown} av ${total} filer`
+      : `${total} filer i biblioteket`;
+  }
+
+  if (cachedAds.length === 0) {
     containerEl.innerHTML =
-      '<p style="color: var(--sx-muted); font-size: 12px;">Ingen filer ennå</p>';
+      '<div class="asset-empty">Ingen reklamefiler lastet opp ennå.</div>';
+    return;
+  }
+
+  if (filteredAds.length === 0) {
+    containerEl.innerHTML =
+      '<div class="asset-empty">Ingen treff på søket ditt.</div>';
     return;
   }
 
   let html = '';
-  ads.forEach((ad) => {
+  filteredAds.forEach((ad) => {
     const isVideo = ad.type === 'video';
     // ===== SECURITY: Escape filename for safe HTML rendering =====
     const escapedName = escapeHtml(ad.name);
@@ -413,43 +452,98 @@ async function renderPlaylistEditor(containerEl) {
   const ads = await loadAds();
   const playlist = await loadPlaylist();
   const playlistItems = playlist?.items || [];
-  
-  let html = '<div style="padding: 16px; background: var(--bg); border-radius: 8px;">';
-  html += '<h3 style="margin-top: 0; margin-bottom: 12px;">Spilling listeeditor</h3>';
-  html += '<p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Velg hvilke filer som skal spilles, i hvilken rekkefølge</p>';
-  
+
+  let html = '<div class="playlist-editor">';
+  html += '<div class="playlist-editor-head">';
+  html += '<h3 class="playlist-editor-title">Spilleliste</h3>';
+  html += '<p class="playlist-editor-subtitle">Velg hvilke filer som skal spilles og sett varighet per fil.</p>';
+  html += '</div>';
+
   if (ads.length === 0) {
-    html += '<p style="color: var(--text-muted);">Ingen reklamer lastet opp ennå</p>';
+    html += '<div class="asset-empty">Ingen reklamer lastet opp ennå.</div>';
     containerEl.innerHTML = html + '</div>';
     return;
   }
-  
-  // Build list with checkboxes and order
-  html += '<div id="playlistItems" style="display: flex; flex-direction: column; gap: 8px;">';
+
+  html += `
+    <div class="playlist-tools">
+      <div class="playlist-tools-actions">
+        <button id="playlistSelectAllBtn" class="btn btn-secondary btn-sm" type="button">Velg alle</button>
+        <button id="playlistClearBtn" class="btn btn-secondary btn-sm" type="button">Tøm valg</button>
+      </div>
+      <p id="playlistSummary" class="playlist-summary">0 valgt</p>
+    </div>
+  `;
+
+  html += '<div id="playlistItems" class="playlist-items">';
   
   for (let i = 0; i < ads.length; i++) {
     const ad = ads[i];
     const playlistItem = playlistItems.find(p => p.filename === ad.name);
     const isChecked = !!playlistItem;
     const duration = playlistItem?.duration || 8000;
-    // ===== SECURITY: Escape filename for safe HTML rendering =====
+    const mediaLabel = ad.type === 'video' ? 'Video' : 'Bilde';
     const escapedName = escapeHtml(ad.name);
     
     html += `
-      <div class="playlist-item" style="display: flex; gap: 12px; align-items: center; padding: 10px; background: white; border-radius: 6px; border: 1px solid var(--border);">
-        <input type="checkbox" class="playlist-checkbox" data-filename="${escapedName}" ${isChecked ? 'checked' : ''} style="cursor: pointer;">
-        <span style="flex: 1; font-size: 14px;">${escapedName}</span>
-        <input type="number" class="playlist-duration" data-filename="${escapedName}" value="${duration / 1000}" min="1" max="60" style="width: 60px; padding: 6px; border: 1px solid var(--border); border-radius: 4px;" placeholder="Sek.">
-        <span style="font-size: 12px; color: var(--text-muted);">sek</span>
+      <div class="playlist-item" data-filename="${escapedName}">
+        <label class="playlist-item-toggle">
+          <input type="checkbox" class="playlist-checkbox" data-filename="${escapedName}" ${isChecked ? 'checked' : ''}>
+        </label>
+        <div class="playlist-item-info">
+          <p class="playlist-item-name">${escapedName}</p>
+          <p class="playlist-item-meta">${mediaLabel}</p>
+        </div>
+        <div class="playlist-item-duration-wrap">
+          <input type="number" class="playlist-duration" value="${duration / 1000}" min="1" max="60" placeholder="Sek.">
+          <span class="playlist-item-duration-unit">sek</span>
+        </div>
       </div>
     `;
   }
   
   html += '</div>';
-  html += '<button id="savePlaylistBtn" class="btn btn-primary" style="margin-top: 12px; width: 100%;">Lagre spilling</button>';
+  html += `
+    <div class="playlist-actions">
+      <button id="savePlaylistBtn" class="btn btn-primary" type="button">Lagre spilleliste</button>
+      <p id="playlistSaveStatus" class="message"></p>
+    </div>
+  `;
   html += '</div>';
   
   containerEl.innerHTML = html;
+
+  const summaryEl = containerEl.querySelector('#playlistSummary');
+  const saveStatusEl = containerEl.querySelector('#playlistSaveStatus');
+  const checkboxes = Array.from(containerEl.querySelectorAll('.playlist-checkbox'));
+
+  const updateSummary = () => {
+    const selected = checkboxes.filter((cb) => cb.checked).length;
+    summaryEl.textContent = `${selected} valgt`;
+  };
+
+  updateSummary();
+
+  checkboxes.forEach((checkbox) => {
+    checkbox.addEventListener('change', updateSummary);
+  });
+
+  const selectAllBtn = containerEl.querySelector('#playlistSelectAllBtn');
+  const clearBtn = containerEl.querySelector('#playlistClearBtn');
+
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', () => {
+      checkboxes.forEach((checkbox) => { checkbox.checked = true; });
+      updateSummary();
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      checkboxes.forEach((checkbox) => { checkbox.checked = false; });
+      updateSummary();
+    });
+  }
   
   // Bind save button
   const saveBtn = containerEl.querySelector('#savePlaylistBtn');
@@ -458,17 +552,22 @@ async function renderPlaylistEditor(containerEl) {
       const items = [];
       containerEl.querySelectorAll('.playlist-checkbox:checked').forEach(cb => {
         const filename = cb.dataset.filename;
-        const durationInput = containerEl.querySelector(`.playlist-duration[data-filename="${filename}"]`);
-        const duration = (parseInt(durationInput.value) || 8) * 1000;
+        const row = cb.closest('.playlist-item');
+        const durationInput = row ? row.querySelector('.playlist-duration') : null;
+        const seconds = Math.max(1, Math.min(60, parseInt(durationInput?.value, 10) || 8));
+        const duration = seconds * 1000;
         items.push({ filename, duration });
       });
       
       const newPlaylist = { items };
+      if (saveStatusEl) {
+        saveStatusEl.textContent = 'Lagrer spilleliste…';
+      }
       const success = await savePlaylist(newPlaylist);
       if (success) {
-        alert('✅ Spilling lagret!');
+        if (saveStatusEl) saveStatusEl.textContent = '✅ Spilleliste lagret';
       } else {
-        alert('❌ Feil ved lagring av spilling');
+        if (saveStatusEl) saveStatusEl.textContent = '❌ Feil ved lagring av spilleliste';
       }
     });
   }
