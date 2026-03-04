@@ -6,6 +6,7 @@ Dette er en samlet oversikt over prosjektnotater og sikkerhetsdokumentasjon.
 - `ADMIN_SETUP.md` — oppsett av admin-innlogging og miljø
 - `ACTION_ITEMS.md` — prioriterte oppgaver og neste steg
 - `CHANGES_SUMMARY.md` — kort oppsummering av endringer
+- `INVESTOR_READINESS_ONE_PAGER.md` — investor/mentor-status, risiko og 30–60 dagers plan
 
 ## Sikkerhet
 - `SECURITY_CHECKLIST.md` — sjekkliste før deploy/demo
