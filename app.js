@@ -2186,7 +2186,7 @@ function openAdminPanel(){
     adminPanel.style.maxWidth = '90%';
     adminPanel.style.background = 'rgba(0,0,0,0.85)';
     adminPanel.style.color = 'white';
-    adminPanel.style.zIndex = '1000';
+    adminPanel.style.zIndex = '9998';
     adminPanel.style.padding = '12px';
     adminPanel.style.border = '1px solid rgba(255,255,255,0.08)';
     adminPanel.style.fontFamily = 'sans-serif';
