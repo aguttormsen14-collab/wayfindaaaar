@@ -2402,6 +2402,16 @@ function openAdminPanel(){
     });
     adminPanel.appendChild(btnSaveScreens);
 
+    const networkBadge = document.createElement('div');
+    networkBadge.id = 'adminNetworkStatus';
+    networkBadge.style.fontSize = '12px';
+    networkBadge.style.fontWeight = '700';
+    networkBadge.style.margin = '0';
+    networkBadge.style.padding = '2px 0 4px 0';
+    networkBadge.style.color = '#9ef';
+    networkBadge.textContent = 'NETT: ...';
+    adminPanel.appendChild(networkBadge);
+
     const healthBadge = document.createElement('div');
     healthBadge.id = 'adminHealthStatus';
     healthBadge.style.fontSize = '12px';
@@ -2450,10 +2460,21 @@ function closeAdminPanel(){
 
 function updateAdminStatus(){
   if(!adminPanel) return;
+  const networkBadge = adminPanel.querySelector('#adminNetworkStatus');
   const healthBadge = adminPanel.querySelector('#adminHealthStatus');
   const st = adminPanel.querySelector('#adminStatus');
   if(!st) return;
+  const isOnline = navigator.onLine !== false;
+  const networkState = isOnline ? 'ONLINE' : 'OFFLINE';
+  const networkColor = isOnline ? 'lime' : 'orange';
+
+  if (networkBadge) {
+    networkBadge.textContent = `NETT: ${networkState}`;
+    networkBadge.style.color = networkColor;
+  }
+
   let info = `screen: ${currentScreen}\nDEBUG: ${DEBUG}\nADS: ${ADS.length}`;
+  info += `\nnetwork: ${networkState}${isOnline ? '' : ' ⚠'}`;
   info += `\nscreens source: ${screensConfigSource}`;
   info += `\nsave in-flight: ${screensSaveInFlight ? 'yes' : 'no'}`;
   try {
@@ -2504,6 +2525,14 @@ function updateAdminStatus(){
   }
   st.textContent = info;
 }
+
+window.addEventListener('online', () => {
+  updateAdminStatus();
+});
+
+window.addEventListener('offline', () => {
+  updateAdminStatus();
+});
 
 
 
