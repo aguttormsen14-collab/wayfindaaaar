@@ -101,6 +101,59 @@ function getSettingsPath(installSlug) {
   return `installs/${installSlug}/assets/settings.json`;
 }
 
+function getScreensConfigPath(installSlug) {
+  return `installs/${installSlug}/config/screens.json`;
+}
+
+async function loadScreensConfigRaw() {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    const cfg = getCfg();
+    const screensPath = getScreensConfigPath(cfg.installSlug);
+    const { data, error } = await supabase.storage.from(cfg.bucket).download(screensPath);
+    if (error || !data) return null;
+
+    const text = await data.text();
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (e) {
+    console.warn('[SCREENS CONFIG] Load error:', e.message);
+    return null;
+  }
+}
+
+async function saveScreensConfigRaw(nextConfig) {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error('Supabase not ready');
+
+    const cfg = getCfg();
+    const screensPath = getScreensConfigPath(cfg.installSlug);
+    const json = JSON.stringify(nextConfig || {}, null, 2);
+    const payload = new Blob([json], { type: 'application/json' });
+
+    const { error: uploadError } = await supabase.storage
+      .from(cfg.bucket)
+      .upload(screensPath, payload, {
+        upsert: true,
+        contentType: 'application/json',
+      });
+
+    if (!uploadError) return true;
+
+    const { error: updateError } = await supabase.storage
+      .from(cfg.bucket)
+      .update(screensPath, payload, { upsert: true });
+
+    if (updateError) throw updateError;
+    return true;
+  } catch (e) {
+    console.error('[SCREENS CONFIG] Save error:', e.message);
+    return false;
+  }
+}
+
 async function loadInstallSettings() {
   try {
     const supabase = getSupabase();
@@ -754,9 +807,14 @@ async function renderLayoutSettings(containerEl) {
   if (!selectEl || !animSelectEl || !saveBtn) return;
 
   try {
-    const settings = await loadInstallSettings();
-    const currentMode = settings?.screenLayout?.mode || 'default';
-    const currentAnim = settings?.screenLayout?.animationProfile || 'subtle';
+    const screensCfg = await loadScreensConfigRaw();
+    const legacySettings = await loadInstallSettings();
+    const currentMode = screensCfg?.layoutSettings?.screenLayout?.mode
+      || legacySettings?.screenLayout?.mode
+      || 'default';
+    const currentAnim = screensCfg?.layoutSettings?.screenLayout?.animationProfile
+      || legacySettings?.screenLayout?.animationProfile
+      || 'subtle';
     selectEl.value = ['default', 'bottom-weather', 'split-ads-weather', 'ads-map-preview'].includes(currentMode)
       ? currentMode
       : 'default';
@@ -772,13 +830,21 @@ async function renderLayoutSettings(containerEl) {
     const animationProfile = animSelectEl.value || 'subtle';
     if (statusEl) statusEl.textContent = 'Lagrer layout…';
 
-    const current = await loadInstallSettings();
-    const success = await saveInstallSettings({
-      ...current,
-      screenLayout: {
-        mode,
-        animationProfile,
-        updatedAt: new Date().toISOString(),
+    const screensCfg = await loadScreensConfigRaw();
+    if (!screensCfg || typeof screensCfg !== 'object') {
+      if (statusEl) statusEl.textContent = '❌ Klarte ikke hente screens.json (trengs for lagring med dagens RLS)';
+      return;
+    }
+
+    const success = await saveScreensConfigRaw({
+      ...screensCfg,
+      layoutSettings: {
+        ...(screensCfg.layoutSettings && typeof screensCfg.layoutSettings === 'object' ? screensCfg.layoutSettings : {}),
+        screenLayout: {
+          mode,
+          animationProfile,
+          updatedAt: new Date().toISOString(),
+        },
       },
     });
 

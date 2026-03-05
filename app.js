@@ -594,12 +594,29 @@ function applyCachedScreensConfig(reason = '') {
   const cached = loadOfflineSnapshot('screens-config');
   if (!cached || typeof cached !== 'object') return false;
 
+  applyLayoutSettingsFromScreensPayload(cached);
+
   const normalized = normalizeRemoteScreensConfig(cached);
   if (!normalized) return false;
 
   applyScreensConfig(normalized.screens, normalized.order, 'offline-cache');
   console.warn(`[SCREENS] Loaded offline cached config${reason ? ` (${reason})` : ''}`);
   return true;
+}
+
+function applyLayoutSettingsFromScreensPayload(rawConfig) {
+  if (!rawConfig || typeof rawConfig !== 'object') return;
+
+  const screenLayout = rawConfig?.layoutSettings?.screenLayout;
+  if (!screenLayout || typeof screenLayout !== 'object') return;
+
+  applyPlayerSettings({
+    ...playerSettings,
+    screenLayout: {
+      mode: screenLayout.mode,
+      animationProfile: screenLayout.animationProfile,
+    },
+  });
 }
 
 function toPersistedScreenBg(bg) {
@@ -790,6 +807,7 @@ async function loadScreensConfigFromSupabase() {
 
     const text = await data.text();
     const parsed = JSON.parse(text);
+    applyLayoutSettingsFromScreensPayload(parsed);
     const normalized = normalizeRemoteScreensConfig(parsed);
     if (!normalized) {
       console.warn('[SCREENS] Invalid screens.json format');
@@ -945,8 +963,13 @@ function normalizePlayerSettings(raw) {
   const weatherEnabled = raw?.weather?.enabled === true;
   const locationRaw = String(raw?.weather?.location || PLAYER_SETTINGS_DEFAULT.weather.location).trim();
   const location = locationRaw || PLAYER_SETTINGS_DEFAULT.weather.location;
-  const mode = getLayoutModeFromSettings(raw);
-  const animationProfile = getAnimationProfileFromSettings(raw);
+  const hasScreenLayout = !!(raw?.screenLayout && typeof raw.screenLayout === 'object');
+  const mode = hasScreenLayout
+    ? getLayoutModeFromSettings(raw)
+    : getLayoutModeFromSettings(playerSettings);
+  const animationProfile = hasScreenLayout
+    ? getAnimationProfileFromSettings(raw)
+    : getAnimationProfileFromSettings(playerSettings);
 
   return {
     weather: {
