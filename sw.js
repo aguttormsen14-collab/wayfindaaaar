@@ -1,25 +1,69 @@
-// Service Worker for Saxvik Hub Kiosk PWA
-// INTENTIONALLY NON-CACHING to avoid stale content in production kiosks
-// This SW exists ONLY to make the app installable on Android Chrome
+// Service Worker for kiosk resilience
+// Strategy: network-first (fresh when online), cache-fallback (keep running when offline)
+
+const CACHE_NAME = 'sx-runtime-v1';
+const CACHE_PREFIX = 'sx-runtime-';
+const APP_SHELL = [
+  './',
+  './index.html',
+  './styles.css',
+  './app.js',
+  './base-path.js',
+  './config.js',
+  './supabase-config.js',
+  './manifest.json',
+];
 
 self.addEventListener('install', (event) => {
-  // Skip waiting to activate immediately
   self.skipWaiting();
-  console.log('[SW] Installed (non-caching mode)');
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    try {
+      await cache.addAll(APP_SHELL);
+    } catch (e) {
+      // keep install non-fatal if any asset is temporarily unavailable
+    }
+  })());
 });
 
 self.addEventListener('activate', (event) => {
-  // Claim all clients immediately
-  event.waitUntil(
-    self.clients.claim().then(() => {
-      console.log('[SW] Activated and claimed clients');
-    })
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
+      keys
+        .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
+        .map((key) => caches.delete(key))
+    );
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener('fetch', (event) => {
-  // PASS-THROUGH: Do NOT cache or modify requests
-  // This ensures kiosks always get fresh content from server
-  // Required for PWA installability but intentionally does nothing
-  return;
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+
+    try {
+      const networkResponse = await fetch(request);
+      if (networkResponse && (networkResponse.ok || networkResponse.type === 'opaque')) {
+        cache.put(request, networkResponse.clone()).catch(() => {});
+      }
+      return networkResponse;
+    } catch (e) {
+      const cached = await cache.match(request, { ignoreSearch: true });
+      if (cached) return cached;
+
+      if (request.mode === 'navigate') {
+        const offlinePage =
+          (await cache.match('./index.html', { ignoreSearch: true })) ||
+          (await cache.match('index.html', { ignoreSearch: true })) ||
+          (await cache.match('./', { ignoreSearch: true }));
+        if (offlinePage) return offlinePage;
+      }
+
+      throw e;
+    }
+  })());
 });

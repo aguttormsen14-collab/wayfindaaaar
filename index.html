@@ -62,10 +62,10 @@
     }
   </script>
 
-  <!-- PWA Service Worker Registration (non-caching, installability only) -->
+  <!-- PWA Service Worker Registration (network-first + offline fallback) -->
   <script>
-    // Register service worker for PWA installability on Android
-    // SW is intentionally non-caching to avoid stale content in kiosks
+    // Register service worker for kiosk resilience.
+    // Online: fresh network content. Offline: cached fallback.
     if ('serviceWorker' in navigator) {
       const swPath = `${window.SX_BASE_PATH || '/'}sw.js`.replace(/\/\/+/, '/');
       navigator.serviceWorker.register(swPath)

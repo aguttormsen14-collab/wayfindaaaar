@@ -280,6 +280,45 @@ if (!isValidInstallSlug(INSTALL_ID)) {
   INSTALL_ID = "amfi-steinkjer";
 }
 
+const OFFLINE_CACHE_VERSION = 'v1';
+const OFFLINE_CACHE_PREFIX = `sx_offline_${OFFLINE_CACHE_VERSION}_${INSTALL_ID}_`;
+
+function getOfflineCacheKey(name) {
+  return `${OFFLINE_CACHE_PREFIX}${name}`;
+}
+
+function saveOfflineSnapshot(name, value) {
+  try {
+    localStorage.setItem(getOfflineCacheKey(name), JSON.stringify({
+      ts: Date.now(),
+      value,
+    }));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function loadOfflineSnapshot(name) {
+  try {
+    const raw = localStorage.getItem(getOfflineCacheKey(name));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (!Object.prototype.hasOwnProperty.call(parsed, 'value')) return null;
+    return parsed.value;
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearOfflineSnapshot(name) {
+  try {
+    localStorage.removeItem(getOfflineCacheKey(name));
+  } catch (e) {
+  }
+}
+
 const BASE_ASSETS = withBase(`installs/${INSTALL_ID}/assets`);
 const SCREEN_ASSETS = `${BASE_ASSETS}/screens`;
 const ADS_ASSETS = `${BASE_ASSETS}/ads`;
@@ -545,6 +584,18 @@ function resetToDefaultScreensConfig() {
   applyScreensConfig(cloneJson(SCREENS_DEFAULT), [...SCREEN_ORDER_DEFAULT], 'hardcoded');
 }
 
+function applyCachedScreensConfig(reason = '') {
+  const cached = loadOfflineSnapshot('screens-config');
+  if (!cached || typeof cached !== 'object') return false;
+
+  const normalized = normalizeRemoteScreensConfig(cached);
+  if (!normalized) return false;
+
+  applyScreensConfig(normalized.screens, normalized.order, 'offline-cache');
+  console.warn(`[SCREENS] Loaded offline cached config${reason ? ` (${reason})` : ''}`);
+  return true;
+}
+
 function toPersistedScreenBg(bg) {
   if (typeof bg !== 'string' || !bg.trim()) return '';
   const value = bg.trim();
@@ -687,12 +738,18 @@ function queueScreensAutosave(reason = 'edit') {
 async function loadScreensConfigFromSupabase() {
   const supabase = getSupabase();
   if (!supabase || typeof window.getSupabaseConfig !== 'function') {
+    if (applyCachedScreensConfig('supabase-not-ready')) {
+      return true;
+    }
     resetToDefaultScreensConfig();
     return false;
   }
 
   const cfg = window.getSupabaseConfig();
   if (!cfg || !cfg.bucket || !cfg.installSlug) {
+    if (applyCachedScreensConfig('invalid-config')) {
+      return true;
+    }
     resetToDefaultScreensConfig();
     return false;
   }
@@ -710,13 +767,17 @@ async function loadScreensConfigFromSupabase() {
     const exists = !folderErr && Array.isArray(folderItems) && folderItems.some((item) => item?.name === fileName);
     if (!exists) {
       console.log('[SCREENS] Using hardcoded config (no screens.json found at', filePath + ')');
+      clearOfflineSnapshot('screens-config');
       resetToDefaultScreensConfig();
       return false;
     }
 
     const { data, error } = await supabase.storage.from(cfg.bucket).download(filePath);
     if (error || !data) {
-      console.warn('[SCREENS] Failed to download screens.json, using hardcoded config:', error?.message || error);
+      console.warn('[SCREENS] Failed to download screens.json:', error?.message || error);
+      if (applyCachedScreensConfig('download-failed')) {
+        return true;
+      }
       resetToDefaultScreensConfig();
       return false;
     }
@@ -725,16 +786,23 @@ async function loadScreensConfigFromSupabase() {
     const parsed = JSON.parse(text);
     const normalized = normalizeRemoteScreensConfig(parsed);
     if (!normalized) {
-      console.warn('[SCREENS] Invalid screens.json format, using hardcoded config');
+      console.warn('[SCREENS] Invalid screens.json format');
+      if (applyCachedScreensConfig('invalid-remote-format')) {
+        return true;
+      }
       resetToDefaultScreensConfig();
       return false;
     }
 
     applyScreensConfig(normalized.screens, normalized.order, 'supabase');
+    saveOfflineSnapshot('screens-config', parsed);
     console.log('[SCREENS] Loaded screens config from Supabase:', filePath);
     return true;
   } catch (e) {
-    console.warn('[SCREENS] Error while loading screens.json, using hardcoded config:', e?.message || e);
+    console.warn('[SCREENS] Error while loading screens.json:', e?.message || e);
+    if (applyCachedScreensConfig('exception')) {
+      return true;
+    }
     resetToDefaultScreensConfig();
     return false;
   }
@@ -829,15 +897,30 @@ function applyPlayerSettings(raw) {
   applyWeatherPanelFromSettings(playerSettings);
 }
 
+function applyCachedPlayerSettings(reason = '') {
+  const cached = loadOfflineSnapshot('player-settings');
+  if (!cached || typeof cached !== 'object') return false;
+
+  applyPlayerSettings(cached);
+  console.warn(`[SETTINGS] Loaded offline cached settings${reason ? ` (${reason})` : ''}`);
+  return true;
+}
+
 async function loadPlayerSettingsFromSupabase() {
   const supabase = getSupabase();
   if (!supabase || typeof window.getSupabaseConfig !== 'function') {
+    if (applyCachedPlayerSettings('supabase-not-ready')) {
+      return true;
+    }
     applyPlayerSettings(PLAYER_SETTINGS_DEFAULT);
     return false;
   }
 
   const cfg = window.getSupabaseConfig();
   if (!cfg || !cfg.bucket || !cfg.installSlug) {
+    if (applyCachedPlayerSettings('invalid-config')) {
+      return true;
+    }
     applyPlayerSettings(PLAYER_SETTINGS_DEFAULT);
     return false;
   }
@@ -854,13 +937,17 @@ async function loadPlayerSettingsFromSupabase() {
 
     const exists = !folderErr && Array.isArray(folderItems) && folderItems.some((item) => item?.name === fileName);
     if (!exists) {
+      clearOfflineSnapshot('player-settings');
       applyPlayerSettings(PLAYER_SETTINGS_DEFAULT);
       return false;
     }
 
     const { data, error } = await supabase.storage.from(cfg.bucket).download(filePath);
     if (error || !data) {
-      console.warn('[SETTINGS] Failed to download settings.json, using defaults:', error?.message || error);
+      console.warn('[SETTINGS] Failed to download settings.json:', error?.message || error);
+      if (applyCachedPlayerSettings('download-failed')) {
+        return true;
+      }
       applyPlayerSettings(PLAYER_SETTINGS_DEFAULT);
       return false;
     }
@@ -868,10 +955,14 @@ async function loadPlayerSettingsFromSupabase() {
     const text = await data.text();
     const parsed = JSON.parse(text);
     applyPlayerSettings(parsed);
+    saveOfflineSnapshot('player-settings', parsed);
     console.log('[SETTINGS] Loaded player settings from Supabase:', filePath);
     return true;
   } catch (e) {
-    console.warn('[SETTINGS] Error while loading settings.json, using defaults:', e?.message || e);
+    console.warn('[SETTINGS] Error while loading settings.json:', e?.message || e);
+    if (applyCachedPlayerSettings('exception')) {
+      return true;
+    }
     applyPlayerSettings(PLAYER_SETTINGS_DEFAULT);
     return false;
   }
@@ -880,6 +971,54 @@ async function loadPlayerSettingsFromSupabase() {
 // allowed file extensions for ads (storage listing)
 const ADS_EXT = ['.jpg','.jpeg','.png','.webp','.mp4'];
 let AD_DURATION_MS = 8000;
+
+function normalizeCachedAds(raw) {
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+
+      const src = typeof entry.src === 'string' ? entry.src.trim() : '';
+      if (!src) return null;
+
+      const isVideo = entry.isVideo === true;
+      const mime = typeof entry.mime === 'string'
+        ? entry.mime
+        : (isVideo ? 'video/mp4' : '');
+
+      const normalized = { src, isVideo, mime };
+
+      const duration = Number(entry.duration);
+      if (Number.isFinite(duration) && duration >= 3000 && duration <= 120000) {
+        normalized.duration = duration;
+      }
+
+      return normalized;
+    })
+    .filter(Boolean);
+}
+
+function cacheAdsSnapshot(ads) {
+  const normalized = normalizeCachedAds(ads);
+  if (!normalized.length) {
+    clearOfflineSnapshot('ads-list');
+    return false;
+  }
+  return saveOfflineSnapshot('ads-list', normalized);
+}
+
+function applyCachedAds(reason = '') {
+  const cached = normalizeCachedAds(loadOfflineSnapshot('ads-list'));
+  if (!cached.length) return false;
+
+  ADS = cached;
+  lastAdsSig = makeAdsSignature(ADS);
+  if (adIndex >= ADS.length) adIndex = 0;
+
+  console.warn(`[ADS] Loaded offline cached ads (${ADS.length})${reason ? ` (${reason})` : ''}`);
+  return true;
+}
 
 // helper used by diagnostics/polling signature
 function makeAdsSignature(ads){
@@ -1921,7 +2060,7 @@ function getAdsPrefix(cfg){
 // list all ad files from Supabase and return metadata array
 async function listAdsFromSupabase(cfg){
   const supabase = getSupabase();
-  if (!supabase) return [];
+  if (!supabase) throw new Error('Supabase client missing');
   const prefix = getAdsPrefix(cfg);
   console.log('[ADS] prefix:', prefix);
   const pageSize = 200;
@@ -1931,8 +2070,7 @@ async function listAdsFromSupabase(cfg){
   while (true) {
     const { data, error } = await supabase.storage.from(cfg.bucket || 'saxvik-hub').list(prefix, { limit: pageSize, offset });
     if (error) {
-      console.error('[ADS] list error', error);
-      return [];
+      throw new Error(`[ADS] list error: ${error?.message || error}`);
     }
     if (!Array.isArray(data) || data.length === 0) {
       break;
@@ -1973,7 +2111,12 @@ async function loadAdsFromSupabase(){
   const supabase = getSupabase();
   if (!supabase) {
     console.error('[ADS] Supabase client missing');
-    maybeShowIdleFallback();
+    if (!ADS.length) {
+      applyCachedAds('supabase-missing');
+    }
+    if (!ADS.length) {
+      maybeShowIdleFallback();
+    }
     adsReloadInFlight = false;
     return;
   }
@@ -1981,13 +2124,19 @@ async function loadAdsFromSupabase(){
     const cfg = window.getSupabaseConfig();
     if (!cfg) {
       console.warn('[ADS] Missing Supabase config, keeping idle fallback');
-      maybeShowIdleFallback();
+      if (!ADS.length) {
+        applyCachedAds('missing-config');
+      }
+      if (!ADS.length) {
+        maybeShowIdleFallback();
+      }
       return;
     }
     const list = await listAdsFromSupabase(cfg);
     if (!list || list.length === 0) {
       ADS = [];
       lastAdsSig = '';
+      clearOfflineSnapshot('ads-list');
       maybeShowIdleFallback();
       return;
     }
@@ -2000,6 +2149,7 @@ async function loadAdsFromSupabase(){
     if (nextAds.length === 0) {
       ADS = [];
       lastAdsSig = '';
+      clearOfflineSnapshot('ads-list');
       maybeShowIdleFallback();
       return;
     }
@@ -2010,12 +2160,18 @@ async function loadAdsFromSupabase(){
 
     ADS = nextAds;
     lastAdsSig = nextSig;
+    cacheAdsSnapshot(ADS);
     if (adIndex >= ADS.length) {
       adIndex = 0;
     }
   } catch (e) {
     console.error('[ADS] loadAdsFromSupabase error', e);
-    maybeShowIdleFallback();
+    if (!ADS.length) {
+      applyCachedAds('poll-error');
+    }
+    if (!ADS.length) {
+      maybeShowIdleFallback();
+    }
   } finally {
     adsReloadInFlight = false;
   }
@@ -2122,38 +2278,49 @@ async function buildAds(){
   const supabase = getSupabase();
   if(!supabase) {
     console.warn('[ADS] Supabase client not initialized');
+    applyCachedAds('build-no-supabase');
     return;
   }
   const cfg = window.getSupabaseConfig();
   if (!cfg) {
     console.warn('[ADS] Missing Supabase config, skipping buildAds');
-    ADS = [];
+    applyCachedAds('build-missing-config');
     return;
   }
   const prefix = getAdsPrefix(cfg);
   console.log('[ADS] prefix:', prefix);
-  const list = await listAdsFromSupabase(cfg);
-  
-  // AUDIT: Convert list items to ad objects with filename tracking
-  const allAds = list.map(item => ({ 
-    src: item.publicUrl, 
-    isVideo: item.isVideo, 
-    mime: item.mime,
-    filename: item.name  // Track original filename for playlist matching
-  }));
-  console.log('[ADS] found:', allAds.length);
-  
-  if(allAds.length === 0){
-    console.warn('[ADS] No files found at:', prefix);
-    ADS = [];
-    lastAdsSig = '';
-    return;
+  try {
+    const list = await listAdsFromSupabase(cfg);
+    
+    // AUDIT: Convert list items to ad objects with filename tracking
+    const allAds = list.map(item => ({ 
+      src: item.publicUrl, 
+      isVideo: item.isVideo, 
+      mime: item.mime,
+      filename: item.name  // Track original filename for playlist matching
+    }));
+    console.log('[ADS] found:', allAds.length);
+    
+    if(allAds.length === 0){
+      console.warn('[ADS] No files found at:', prefix);
+      ADS = [];
+      lastAdsSig = '';
+      clearOfflineSnapshot('ads-list');
+      return;
+    }
+    
+    // AUDIT: Try to load and apply playlist
+    const playlist = await loadPlaylist();
+    ADS = playlist ? applyPlaylist(allAds, playlist) : allAds;
+    lastAdsSig = makeAdsSignature(ADS);
+    cacheAdsSnapshot(ADS);
+  } catch (e) {
+    console.warn('[ADS] buildAds error:', e?.message || e);
+    if (!applyCachedAds('build-error')) {
+      ADS = [];
+      lastAdsSig = '';
+    }
   }
-  
-  // AUDIT: Try to load and apply playlist
-  const playlist = await loadPlaylist();
-  ADS = playlist ? applyPlaylist(allAds, playlist) : allAds;
-  lastAdsSig = makeAdsSignature(ADS);
 }
 
 async function pollAdsAndReloadIfChanged(){
@@ -2809,12 +2976,29 @@ const SUPABASE_INIT_MAX_WAIT_MS = 10000;
 let supabaseInitStartTs = 0;
 let supabaseWaitLogTs = 0;
 let screensConfigInitialized = false;
+let offlineBootstrapApplied = false;
 
 function startAdsPollingLoop() {
   console.log('[APP] supabase ready → starting ads polling');
   loadAdsFromSupabase();
   if (adsPollTimer) clearInterval(adsPollTimer);
   adsPollTimer = setInterval(loadAdsFromSupabase, ADS_POLL_MS);
+}
+
+function tryOfflineBootstrap(reason = '') {
+  const hasScreens = applyCachedScreensConfig(reason);
+  const hasSettings = applyCachedPlayerSettings(reason);
+  const hasAds = applyCachedAds(reason);
+
+  if (hasScreens && currentScreen) {
+    const nextScreen = SCREENS[currentScreen] ? currentScreen : 'idle';
+    setScreen(nextScreen);
+    if (nextScreen === 'idle') {
+      showIdleBackground();
+    }
+  }
+
+  return hasScreens || hasSettings || hasAds;
 }
 
 function startWhenSupabaseReady(){
@@ -2826,6 +3010,11 @@ function startWhenSupabaseReady(){
     const waitedMs = Date.now() - supabaseInitStartTs;
     if (waitedMs > SUPABASE_INIT_MAX_WAIT_MS) {
       console.error('[APP] Supabase init timeout after', waitedMs, 'ms. Retrying in 5s...');
+
+      if (!offlineBootstrapApplied) {
+        offlineBootstrapApplied = tryOfflineBootstrap('supabase-timeout');
+      }
+
       const appEl = document.getElementById('app');
       if (appEl && currentScreen === 'idle') {
         const hint = document.getElementById('supabaseInitHint');
@@ -2833,8 +3022,12 @@ function startWhenSupabaseReady(){
           const el = document.createElement('div');
           el.id = 'supabaseInitHint';
           el.style.cssText = 'position:fixed;bottom:12px;left:12px;z-index:9999;padding:8px 10px;background:rgba(0,0,0,0.75);color:#fff;font:12px sans-serif;border-radius:8px;';
-          el.textContent = 'Tilkobler innhold… prøver igjen';
+          el.textContent = offlineBootstrapApplied
+            ? 'Offline-modus aktiv (bruker sist lagrede data)'
+            : 'Tilkobler innhold… prøver igjen';
           document.body.appendChild(el);
+        } else if (offlineBootstrapApplied) {
+          hint.textContent = 'Offline-modus aktiv (bruker sist lagrede data)';
         }
       }
       supabaseInitStartTs = 0;
@@ -2854,6 +3047,7 @@ function startWhenSupabaseReady(){
   if (hint) hint.remove();
   supabaseInitStartTs = 0;
   supabaseWaitLogTs = 0;
+  offlineBootstrapApplied = false;
 
   if (!screensConfigInitialized) {
     screensConfigInitialized = true;
