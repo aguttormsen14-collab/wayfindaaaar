@@ -2259,7 +2259,7 @@ function openAdminPanel(){
     // Close hint
     const hint = document.createElement('div');
     hint.style.fontSize = '11px'; hint.style.opacity = '0.8'; hint.style.marginTop = '8px';
-    hint.textContent = 'Hold CTRL+SHIFT+D for 2s to open/close admin panel';
+    hint.textContent = 'Hold CTRL+SHIFT+ArrowDown for 2s to open/close admin panel';
     adminPanel.appendChild(hint);
   }
 
@@ -2374,6 +2374,7 @@ document.addEventListener('keydown', (e) => {
   if (isEditableTarget(document.activeElement) || isEditableTarget(e.target)) return;
   // ArrowDown holds editMode. Ignore autorepeat flips.
   if(e.code === 'ArrowDown'){
+    if(e.ctrlKey && e.shiftKey) return;
     if(!e.repeat && !editMode){ editMode = true; updateDebugOverlayPointer(); }
     e.preventDefault();
     return;
@@ -2410,13 +2411,13 @@ function setDebugMode(enabled){
   }
 }
 
-// Toggle via Ctrl+D (ignore when typing)
+// Toggle shortcuts (ignore when typing)
 let adminHoldTimer = null;
 document.addEventListener('keydown', (e) => {
   if (isEditableTarget(document.activeElement) || isEditableTarget(e.target)) return;
 
-  // Admin panel open: hold CTRL + SHIFT + D for 2s
-  if(e.code === 'KeyD' && e.ctrlKey && e.shiftKey && !adminHoldTimer){
+  // Admin panel open: hold CTRL + SHIFT + ArrowDown for 2s
+  if(e.code === 'ArrowDown' && e.ctrlKey && e.shiftKey && !adminHoldTimer){
     e.preventDefault();
     adminHoldTimer = setTimeout(() => { toggleAdminPanel(); adminHoldTimer = null; }, 2000);
     return;
@@ -2431,7 +2432,7 @@ document.addEventListener('keydown', (e) => {
 }, {passive:false});
 
 document.addEventListener('keyup', (e) => {
-  if(e.code === 'KeyD' || e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'ControlLeft' || e.code === 'ControlRight'){
+  if(e.code === 'ArrowDown' || e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'ControlLeft' || e.code === 'ControlRight'){
     if(adminHoldTimer){ clearTimeout(adminHoldTimer); adminHoldTimer = null; }
   }
 }, {passive:false});
