@@ -25,6 +25,148 @@ setInterval(() => {
   }
 }, 2000);
 
+const APP_START_TS = Date.now();
+const HEALTH_SAMPLE_MS = 30000;
+const HEALTH_REPORT_EVERY_SAMPLES = 20;
+const HEALTH_HISTORY_MAX = 288;
+const HEALTH_EVENT_LOOP_WARN_MS = 250;
+const HEALTH_RENDER_AGE_WARN_MS = 45000;
+const HEALTH_HISTORY_STORAGE_KEY = 'sx_health_history_v1';
+
+let healthMonitorTimer = null;
+let healthSampleExpectedTs = 0;
+let healthSampleCounter = 0;
+let healthLagSumMs = 0;
+let healthSlowTickCounter = 0;
+let healthMaxLagMs = 0;
+let healthLastLagMs = 0;
+let healthWindowErrorCount = 0;
+let healthPromiseRejectCount = 0;
+let healthLastSnapshot = null;
+
+function readHeapStatsMb() {
+  if (!window.performance || !window.performance.memory) return null;
+  const mem = window.performance.memory;
+  if (!Number.isFinite(mem.usedJSHeapSize)) return null;
+  const usedMb = Math.round((mem.usedJSHeapSize / (1024 * 1024)) * 10) / 10;
+  const limitMb = Number.isFinite(mem.jsHeapSizeLimit)
+    ? Math.round((mem.jsHeapSizeLimit / (1024 * 1024)) * 10) / 10
+    : null;
+  return { usedMb, limitMb };
+}
+
+function getHealthReport() {
+  const heap = readHeapStatsMb();
+  const samples = Math.max(healthSampleCounter, 1);
+  const avgLagMs = Math.round((healthLagSumMs / samples) * 10) / 10;
+  const renderAgeMs = Math.max(0, Date.now() - lastRenderTs);
+
+  return {
+    ts: new Date().toISOString(),
+    uptimeSec: Math.round((Date.now() - APP_START_TS) / 1000),
+    screen: currentScreen || null,
+    adsRunning: !!adsRunning,
+    lag: {
+      lastMs: healthLastLagMs,
+      avgMs: avgLagMs,
+      maxMs: healthMaxLagMs,
+      slowTicks: healthSlowTickCounter,
+      samples: healthSampleCounter,
+    },
+    renderAgeMs,
+    heap: heap ? {
+      usedMb: heap.usedMb,
+      limitMb: heap.limitMb,
+      usagePct: heap.limitMb ? Math.round((heap.usedMb / heap.limitMb) * 1000) / 10 : null,
+    } : null,
+    errors: {
+      window: healthWindowErrorCount,
+      promise: healthPromiseRejectCount,
+    },
+  };
+}
+
+function getHealthHistory() {
+  try {
+    const raw = localStorage.getItem(HEALTH_HISTORY_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function appendHealthHistory(snapshot) {
+  try {
+    const history = getHealthHistory();
+    history.push(snapshot);
+    if (history.length > HEALTH_HISTORY_MAX) {
+      history.splice(0, history.length - HEALTH_HISTORY_MAX);
+    }
+    localStorage.setItem(HEALTH_HISTORY_STORAGE_KEY, JSON.stringify(history));
+  } catch (e) {
+  }
+}
+
+function captureHealthSample() {
+  const nowPerf = window.performance && typeof window.performance.now === 'function'
+    ? window.performance.now()
+    : Date.now();
+
+  let lagMs = 0;
+  if (healthSampleExpectedTs > 0) {
+    lagMs = Math.max(0, nowPerf - healthSampleExpectedTs - HEALTH_SAMPLE_MS);
+  }
+  healthSampleExpectedTs = nowPerf;
+
+  if (document.hidden) {
+    lagMs = 0;
+  }
+
+  const roundedLag = Math.round(lagMs);
+  healthLastLagMs = roundedLag;
+  healthSampleCounter += 1;
+  healthLagSumMs += roundedLag;
+  if (roundedLag > HEALTH_EVENT_LOOP_WARN_MS) {
+    healthSlowTickCounter += 1;
+  }
+  if (roundedLag > healthMaxLagMs) {
+    healthMaxLagMs = roundedLag;
+  }
+
+  const snapshot = getHealthReport();
+  healthLastSnapshot = snapshot;
+
+  const isPeriodicReport = (healthSampleCounter % HEALTH_REPORT_EVERY_SAMPLES) === 0;
+  const hasAnomaly = snapshot.lag.lastMs > 1000 || snapshot.renderAgeMs > HEALTH_RENDER_AGE_WARN_MS;
+
+  if (!isPeriodicReport && !hasAnomaly) return;
+
+  appendHealthHistory(snapshot);
+  if (hasAnomaly) {
+    console.warn('[HEALTH] anomaly', snapshot);
+  } else {
+    console.log('[HEALTH]', snapshot);
+  }
+}
+
+function startHealthMonitor() {
+  if (healthMonitorTimer) return;
+  healthSampleExpectedTs = window.performance && typeof window.performance.now === 'function'
+    ? window.performance.now()
+    : Date.now();
+  healthMonitorTimer = setInterval(captureHealthSample, HEALTH_SAMPLE_MS);
+  captureHealthSample();
+}
+
+function stopHealthMonitor() {
+  if (!healthMonitorTimer) return;
+  clearInterval(healthMonitorTimer);
+  healthMonitorTimer = null;
+  healthSampleExpectedTs = 0;
+}
+
 
 // helper to prefix any local asset paths with the GitHub Pages base path
 function withBase(path) {
@@ -162,6 +304,7 @@ const ASSETS = {
 const ADS_POLL_MS = 15 * 1000; // 15 seconds
 let lastAdsSig = "";
 let adsPollTimer = null;
+let adsReloadInFlight = false;
 
 // SCREENS Configuration with hotspots and pulses (normalized coordinates 0..1)
 const SCREENS = {
@@ -815,6 +958,7 @@ let ADS = [];
 let adIndex = 0;
 let adTimer = null;
 let adFallbackTimer = null;
+let pendingVideoSkipTimer = null;
 // overlay layer and state
 let adsLayer = null;
 // === VIDEO FAILSAFE ===
@@ -1100,10 +1244,14 @@ async function getFitRectForCurrentScreen(screenName){
 }
 
 let debugFitEl = null;
+let layoutRequestToken = 0;
 async function applyLayout(screenName){
   const cfg = SCREENS[screenName];
   if(!cfg) return;
+  const layoutToken = ++layoutRequestToken;
   const fit = await getFitRectForCurrentScreen(screenName);
+  if (layoutToken !== layoutRequestToken) return;
+  if (screenName !== currentScreen) return;
 
   // debug fit rect
   if(DEBUG){
@@ -1123,7 +1271,7 @@ async function applyLayout(screenName){
 
   // layout hotspots
   cfg.hotspots.forEach((h, i) => {
-    const el = hotspotsEl.querySelector(`[data-hotspot-idx="${i}"]`);
+    const el = hotspotsEl.querySelector(`[data-hotspot-idx="${i}"][data-screen-name="${screenName}"]`);
     if(!el) return;
     const pxLeft = fit.left + h.x * fit.width;
     const pxTop = fit.top + h.y * fit.height;
@@ -1138,7 +1286,7 @@ async function applyLayout(screenName){
 
   // layout pulses
   cfg.pulses.forEach((p, i) => {
-    const el = hotspotsEl.querySelector(`[data-pulse-idx="${i}"]`);
+    const el = hotspotsEl.querySelector(`[data-pulse-idx="${i}"][data-screen-name="${screenName}"]`);
     if(!el) return;
     const pxLeft = fit.left + p.x * fit.width;
     const pxTop = fit.top + p.y * fit.height;
@@ -1205,6 +1353,7 @@ safeSetBackground(config.bg);
     const pulseEl = document.createElement('div');
     pulseEl.className = 'pulse';
     pulseEl.dataset.pulseIdx = String(pulseIdx);
+    pulseEl.dataset.screenName = screenName;
     pulseEl.style.position = 'absolute';
     pulseEl.style.pointerEvents = 'none';
     pulseEl.style.transform = 'translate(-50%, -50%)';
@@ -1812,42 +1961,63 @@ async function listAdsFromSupabase(cfg){
 
 // fetch a fresh list of ads directly from Supabase and optionally start the loop
 async function loadAdsFromSupabase(){
+  if (adsReloadInFlight) return;
+  adsReloadInFlight = true;
+
+  const maybeShowIdleFallback = () => {
+    if (adsRunning || currentScreen === 'idle' || isAdsScreen(currentScreen)) {
+      showIdleBackground();
+    }
+  };
+
   const supabase = getSupabase();
   if (!supabase) {
     console.error('[ADS] Supabase client missing');
-    showIdleBackground();
+    maybeShowIdleFallback();
+    adsReloadInFlight = false;
     return;
   }
   try {
     const cfg = window.getSupabaseConfig();
     if (!cfg) {
       console.warn('[ADS] Missing Supabase config, keeping idle fallback');
-      showIdleBackground();
+      maybeShowIdleFallback();
       return;
     }
     const list = await listAdsFromSupabase(cfg);
     if (!list || list.length === 0) {
-      showIdleBackground();
+      ADS = [];
+      lastAdsSig = '';
+      maybeShowIdleFallback();
       return;
     }
 
+    const nextSig = makeAdsSignature(list);
     const nextAds = list.map((item) => {
       return { src: item.publicUrl, isVideo: item.isVideo, mime: item.mime };
     });
 
     if (nextAds.length === 0) {
       ADS = [];
-      showIdleBackground();
+      lastAdsSig = '';
+      maybeShowIdleFallback();
+      return;
+    }
+
+    if (nextSig === lastAdsSig && nextAds.length === ADS.length) {
       return;
     }
 
     ADS = nextAds;
+    lastAdsSig = nextSig;
     if (adIndex >= ADS.length) {
       adIndex = 0;
     }
   } catch (e) {
     console.error('[ADS] loadAdsFromSupabase error', e);
-    showIdleBackground();
+    maybeShowIdleFallback();
+  } finally {
+    adsReloadInFlight = false;
   }
 }
 
@@ -1976,12 +2146,14 @@ async function buildAds(){
   if(allAds.length === 0){
     console.warn('[ADS] No files found at:', prefix);
     ADS = [];
+    lastAdsSig = '';
     return;
   }
   
   // AUDIT: Try to load and apply playlist
   const playlist = await loadPlaylist();
   ADS = playlist ? applyPlaylist(allAds, playlist) : allAds;
+  lastAdsSig = makeAdsSignature(ADS);
 }
 
 async function pollAdsAndReloadIfChanged(){
@@ -1994,6 +2166,8 @@ async function pollAdsAndReloadIfChanged(){
 // === ADMIN MODE ===
 let adminPanel = null;
 let adminPanelOpen = false;
+let adminStatusTimer = null;
+const ADMIN_STATUS_REFRESH_MS = 5000;
 
 function toggleAdminPanel(){
   if(adminPanelOpen) closeAdminPanel(); else openAdminPanel();
@@ -2061,6 +2235,16 @@ function openAdminPanel(){
     });
     adminPanel.appendChild(btnSaveScreens);
 
+    const healthBadge = document.createElement('div');
+    healthBadge.id = 'adminHealthStatus';
+    healthBadge.style.fontSize = '12px';
+    healthBadge.style.fontWeight = '700';
+    healthBadge.style.margin = '0';
+    healthBadge.style.padding = '2px 0 4px 0';
+    healthBadge.style.color = '#9ef';
+    healthBadge.textContent = 'HEALTH: ...';
+    adminPanel.appendChild(healthBadge);
+
     // Status
     const status = document.createElement('pre');
     status.id = 'adminStatus';
@@ -2081,21 +2265,66 @@ function openAdminPanel(){
 
   document.body.appendChild(adminPanel);
   updateAdminStatus();
+  if (adminStatusTimer) clearInterval(adminStatusTimer);
+  adminStatusTimer = setInterval(() => {
+    if (adminPanelOpen) updateAdminStatus();
+  }, ADMIN_STATUS_REFRESH_MS);
 }
 
 function closeAdminPanel(){
   if(!adminPanelOpen) return;
   adminPanelOpen = false;
+  if (adminStatusTimer) {
+    clearInterval(adminStatusTimer);
+    adminStatusTimer = null;
+  }
   if(adminPanel && adminPanel.parentElement) adminPanel.parentElement.removeChild(adminPanel);
 }
 
 function updateAdminStatus(){
   if(!adminPanel) return;
+  const healthBadge = adminPanel.querySelector('#adminHealthStatus');
   const st = adminPanel.querySelector('#adminStatus');
   if(!st) return;
   let info = `screen: ${currentScreen}\nDEBUG: ${DEBUG}\nADS: ${ADS.length}`;
   info += `\nscreens source: ${screensConfigSource}`;
   info += `\nsave in-flight: ${screensSaveInFlight ? 'yes' : 'no'}`;
+  try {
+    const health = getHealthReport();
+    const renderAgeSec = Math.round(health.renderAgeMs / 1000);
+    const lagWarn = Number(health.lag?.lastMs || 0) > HEALTH_EVENT_LOOP_WARN_MS;
+    const renderWarn = Number(health.renderAgeMs || 0) > HEALTH_RENDER_AGE_WARN_MS;
+    const heapWarn = Number.isFinite(health.heap?.usagePct) ? health.heap.usagePct >= 80 : false;
+    const errorWarn = Number(health.errors?.window || 0) + Number(health.errors?.promise || 0) > 0;
+    const healthWarnCount = [lagWarn, renderWarn, heapWarn, errorWarn].filter(Boolean).length;
+    const healthState = healthWarnCount > 0 ? `WARN (${healthWarnCount})` : 'OK';
+    const healthBadgeState = healthWarnCount === 0
+      ? 'GREEN'
+      : (healthWarnCount >= 3 ? `RED (${healthWarnCount})` : `YELLOW (${healthWarnCount})`);
+    const healthBadgeColor = healthWarnCount === 0
+      ? 'lime'
+      : (healthWarnCount >= 3 ? 'tomato' : 'gold');
+    const heapText = health.heap
+      ? `${health.heap.usedMb}MB${Number.isFinite(health.heap.usagePct) ? ` (${health.heap.usagePct}%)` : ''}`
+      : 'n/a';
+
+    if (healthBadge) {
+      healthBadge.textContent = `HEALTH: ${healthBadgeState}`;
+      healthBadge.style.color = healthBadgeColor;
+    }
+
+    info += `\nhealth status: ${healthState}`;
+    info += `\nhealth lag ms (L/A/M): ${health.lag.lastMs}/${health.lag.avgMs}/${health.lag.maxMs}${lagWarn ? ' ⚠' : ''}`;
+    info += `\nhealth render age: ${renderAgeSec}s${renderWarn ? ' ⚠' : ''}`;
+    info += `\nhealth heap: ${heapText}${heapWarn ? ' ⚠' : ''}`;
+    info += `\nhealth errors w/p: ${health.errors.window}/${health.errors.promise}${errorWarn ? ' ⚠' : ''}`;
+  } catch (e) {
+    if (healthBadge) {
+      healthBadge.textContent = 'HEALTH: N/A';
+      healthBadge.style.color = '#9ef';
+    }
+    info += `\nhealth: unavailable`;
+  }
   if(DEBUG){
     try{
       const cfg = window.getSupabaseConfig();
@@ -2235,6 +2464,7 @@ function stopAds(){
 function cleanupVideoPlayback(){
   // === VIDEO FAILSAFE ===
   try{
+    if(pendingVideoSkipTimer){ clearTimeout(pendingVideoSkipTimer); pendingVideoSkipTimer = null; }
     if(videoWatchdogTimer){ clearTimeout(videoWatchdogTimer); videoWatchdogTimer = null; }
     if(videoMaxTimer){ clearTimeout(videoMaxTimer); videoMaxTimer = null; }
     videoStarted = false;
@@ -2249,6 +2479,7 @@ function cleanupVideoPlayback(){
 }
 
 function nextAd(){
+  if(!adsRunning) return;
   if(!ADS.length) {
     hideAdsOverlay();
     hideAdsTapCatcher();
@@ -2343,7 +2574,12 @@ function showAdByIndex(i){
       }).catch((e)=>{
         console.warn('play() promise rejected, skipping ad', e);
         // small delay then skip
-        setTimeout(()=>{ cleanupVideoPlayback(); nextAd(); }, 500);
+        if (pendingVideoSkipTimer) clearTimeout(pendingVideoSkipTimer);
+        pendingVideoSkipTimer = setTimeout(()=>{
+          pendingVideoSkipTimer = null;
+          cleanupVideoPlayback();
+          nextAd();
+        }, 500);
       });
     }
   } else {
@@ -2507,6 +2743,7 @@ function init(){
 
   // Global unhandled error handler: recovery to idle
   window.addEventListener('error', (event) => {
+    healthWindowErrorCount += 1;
     demoLog('[HARDENING] Unhandled error: ' + (event.message || event.error));
     if (currentScreen !== 'idle') {
       setTimeout(() => {
@@ -2521,6 +2758,7 @@ function init(){
 
   // Global unhandled promise rejection handler
   window.addEventListener('unhandledrejection', (event) => {
+    healthPromiseRejectCount += 1;
     demoLog('[HARDENING] Unhandled promise rejection: ' + (event.reason || 'unknown'));
     event.preventDefault();
     if (currentScreen !== 'idle') {
@@ -2545,6 +2783,7 @@ function init(){
 
   // start when supabase singleton is ready
   startWhenSupabaseReady();
+  startHealthMonitor();
 
   resetIdleTimer();
 }
@@ -2558,7 +2797,7 @@ function startAdsPollingLoop() {
   console.log('[APP] supabase ready → starting ads polling');
   loadAdsFromSupabase();
   if (adsPollTimer) clearInterval(adsPollTimer);
-  adsPollTimer = setInterval(loadAdsFromSupabase, 15000);
+  adsPollTimer = setInterval(loadAdsFromSupabase, ADS_POLL_MS);
 }
 
 function startWhenSupabaseReady(){
@@ -2641,6 +2880,14 @@ window.__kiosk = {
   saveScreensConfigToSupabase,
   queueScreensAutosave,
   getScreensConfigSource: () => screensConfigSource,
+  getHealthReport,
+  getHealthHistory,
+  getLastHealthSnapshot: () => healthLastSnapshot,
+  clearHealthHistory: () => {
+    try { localStorage.removeItem(HEALTH_HISTORY_STORAGE_KEY); } catch (e) {}
+  },
+  startHealthMonitor,
+  stopHealthMonitor,
   openAdmin: () => { toggleAdminPanel(); }
 };
 
