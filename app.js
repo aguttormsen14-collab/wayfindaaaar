@@ -2259,7 +2259,7 @@ function openAdminPanel(){
     // Close hint
     const hint = document.createElement('div');
     hint.style.fontSize = '11px'; hint.style.opacity = '0.8'; hint.style.marginTop = '8px';
-    hint.textContent = 'Hold CTRL+SHIFT+ArrowDown for 2s to open/close admin panel';
+    hint.textContent = 'Hold SHIFT+H for 2s to open/close admin panel (short press toggles debug)';
     adminPanel.appendChild(hint);
   }
 
@@ -2374,7 +2374,6 @@ document.addEventListener('keydown', (e) => {
   if (isEditableTarget(document.activeElement) || isEditableTarget(e.target)) return;
   // ArrowDown holds editMode. Ignore autorepeat flips.
   if(e.code === 'ArrowDown'){
-    if(e.ctrlKey && e.shiftKey) return;
     if(!e.repeat && !editMode){ editMode = true; updateDebugOverlayPointer(); }
     e.preventDefault();
     return;
@@ -2413,27 +2412,44 @@ function setDebugMode(enabled){
 
 // Toggle shortcuts (ignore when typing)
 let adminHoldTimer = null;
+let adminShortcutArmed = false;
+let adminShortcutLongPressTriggered = false;
 document.addEventListener('keydown', (e) => {
   if (isEditableTarget(document.activeElement) || isEditableTarget(e.target)) return;
+  if (e.code !== 'KeyH' || !e.shiftKey) return;
 
-  // Admin panel open: hold CTRL + SHIFT + ArrowDown for 2s
-  if(e.code === 'ArrowDown' && e.ctrlKey && e.shiftKey && !adminHoldTimer){
-    e.preventDefault();
-    adminHoldTimer = setTimeout(() => { toggleAdminPanel(); adminHoldTimer = null; }, 2000);
-    return;
-  }
+  e.preventDefault();
+  if (e.repeat || adminHoldTimer) return;
 
-  // Toggle debug with CTRL + D
-  if(e.code === 'KeyD' && e.ctrlKey && !e.shiftKey && !e.repeat){
-    e.preventDefault();
-    setDebugMode(!DEBUG);
-    return;
-  }
+  adminShortcutArmed = true;
+  adminShortcutLongPressTriggered = false;
+  adminHoldTimer = setTimeout(() => {
+    adminShortcutLongPressTriggered = true;
+    adminShortcutArmed = false;
+    toggleAdminPanel();
+    adminHoldTimer = null;
+  }, 2000);
 }, {passive:false});
 
 document.addEventListener('keyup', (e) => {
-  if(e.code === 'ArrowDown' || e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'ControlLeft' || e.code === 'ControlRight'){
-    if(adminHoldTimer){ clearTimeout(adminHoldTimer); adminHoldTimer = null; }
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+    if (adminHoldTimer) { clearTimeout(adminHoldTimer); adminHoldTimer = null; }
+    adminShortcutArmed = false;
+    adminShortcutLongPressTriggered = false;
+    return;
+  }
+
+  if (e.code !== 'KeyH') return;
+
+  e.preventDefault();
+  if (adminHoldTimer) { clearTimeout(adminHoldTimer); adminHoldTimer = null; }
+
+  const shouldToggleDebug = adminShortcutArmed && !adminShortcutLongPressTriggered;
+  adminShortcutArmed = false;
+  adminShortcutLongPressTriggered = false;
+
+  if (shouldToggleDebug) {
+    setDebugMode(!DEBUG);
   }
 }, {passive:false});
 
