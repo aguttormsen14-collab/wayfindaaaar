@@ -73,7 +73,7 @@
 </head>
 <body>
   <h1>Business Plan – Software for Infoskjermer og Wayfinding</h1>
-  <p class="muted">Versjon 1.0 • Dato: 4. mars 2026</p>
+  <p class="muted">Versjon 1.1 • Dato: 5. mars 2026</p>
   <div class="meta">
     <p><strong>Produkt:</strong> SaaS-plattform for digital signage + interaktiv wayfinding</p>
     <p><strong>Status:</strong> Pilotfase med én aktiv pilotkunde (installasjonsspor: <em>amfi-steinkjer</em>)</p>
@@ -91,9 +91,9 @@
   <p><strong>Forretningsmodell:</strong> Abonnement per skjerm/lokasjon, modulprising (signage + wayfinding + integrasjoner), enterprise-avtaler og engangstjenester (kartproduksjon/implementering).</p>
 
   <div class="kpi">
-    <div class="kpi-card"><div class="v">12 mnd</div><div class="l">8 betalende kunder, 70 installerte skjermer</div></div>
-    <div class="kpi-card"><div class="v">24 mnd</div><div class="l">22 kunder, 220 skjermer, 4 standardintegrasjoner</div></div>
-    <div class="kpi-card"><div class="v">36 mnd</div><div class="l">50 kunder, 600 skjermer, EBITDA rundt break-even/positiv</div></div>
+    <div class="kpi-card"><div class="v">12 mnd</div><div class="l">2–4 betalende kunder, 10–25 skjermer</div></div>
+    <div class="kpi-card"><div class="v">24 mnd</div><div class="l">6–10 kunder, 35–80 skjermer</div></div>
+    <div class="kpi-card"><div class="v">36 mnd</div><div class="l">12–18 kunder, 90–160 skjermer</div></div>
   </div>
 
   <h2>2. Problemdefinisjon</h2>
@@ -156,7 +156,7 @@
     <tr><th>Mål</th><th>Definisjon</th><th>Nivå (indikativt)</th></tr>
     <tr><td>TAM</td><td>Nordisk marked for digitale infoskjermer + wayfinding-relevante bygg</td><td>35 000–60 000 skjermer</td></tr>
     <tr><td>SAM</td><td>Norge + utvalgte vertikaler i Norden første 3 år</td><td>8 000–12 000 skjermer</td></tr>
-    <tr><td>SOM (36 mnd)</td><td>Realistisk mål med partnerdrevet utrulling</td><td>600 skjermer</td></tr>
+    <tr><td>SOM (36 mnd)</td><td>Nøkternt mål gitt dagens fase (pilot + liten organisasjon)</td><td>90–160 skjermer</td></tr>
   </table>
   <p class="small muted">Markedet drives av digitalisering av byggforvaltning, økt fokus på brukeropplevelse i offentlige rom og etterspørsel etter sentralisert skjermdrift.</p>
 
@@ -216,20 +216,20 @@
   <h2>6. Forretningsmodell</h2>
   <h3>Inntektsmodeller</h3>
   <ul>
-    <li><strong>Abonnement per skjerm:</strong> 790 kr (signage) + 390 kr (wayfinding) per skjerm/mnd.</li>
-    <li><strong>Modul for sanntidsintegrasjon:</strong> 290 kr/skjerm/mnd.</li>
-    <li><strong>Lokasjonsabonnement:</strong> minimum 2 990 kr/mnd per lokasjon.</li>
-    <li><strong>Enterprise-avtaler:</strong> rammeavtaler med volumpriser og SLA.</li>
-    <li><strong>Engangstjenester:</strong> kartproduksjon, design, implementering og opplæring.</li>
+    <li><strong>Innføringspris i tidlig fase:</strong> 200–500 kr per skjerm/mnd for å senke terskel hos pilotkunder.</li>
+    <li><strong>Standard abonnementsnivå (etter validering):</strong> 500–900 kr per skjerm/mnd avhengig av funksjonsnivå.</li>
+    <li><strong>Lokasjonspakke:</strong> 1 500–4 500 kr/mnd for mindre lokasjoner med få skjermer.</li>
+    <li><strong>Enterprise-avtaler:</strong> rammeavtaler med volumrabatt og tydelig SLA når drift er moden.</li>
+    <li><strong>Engangstjenester:</strong> kartproduksjon, onboarding, konfigurering og opplæring.</li>
   </ul>
 
   <h3>Engangsprising (indikativ)</h3>
   <table>
     <tr><th>Tjeneste</th><th>Prisintervall</th></tr>
-    <tr><td>Kartproduksjon (2D)</td><td>35 000–120 000 kr per bygg</td></tr>
-    <tr><td>Kartproduksjon (3D, kompleks)</td><td>120 000–300 000 kr per bygg</td></tr>
-    <tr><td>Implementering/onboarding</td><td>15 000–80 000 kr per lokasjon</td></tr>
-    <tr><td>Integrasjonsarbeid</td><td>1 350–1 650 kr/time eller fastpris</td></tr>
+    <tr><td>Kartproduksjon (forenklet 2D)</td><td>10 000–35 000 kr per bygg</td></tr>
+    <tr><td>Kartproduksjon (avansert 2D/3D)</td><td>35 000–120 000 kr per bygg</td></tr>
+    <tr><td>Implementering/onboarding</td><td>5 000–30 000 kr per lokasjon</td></tr>
+    <tr><td>Integrasjonsarbeid</td><td>1 200–1 600 kr/time eller fastpris</td></tr>
   </table>
 
   <h3>Løpende kostnader</h3>
@@ -281,40 +281,43 @@
     <tr>
       <td>0–6 mnd</td>
       <td>Stabilisert MVP: skjermstyring + karteditor + policy/tenant-hardening + staging/prod-løp</td>
-      <td>99,5% player-oppetid i pilot, < 2 kritiske feil/mnd</td>
+      <td>Minst 1 betalende pilotkunde, &gt;95% oppetid, &lt;5 kritiske feil/mnd</td>
     </tr>
     <tr>
       <td>6–12 mnd</td>
-      <td>Standardintegrasjoner (kalender/booking), sanntidswidgeter, forbedret rollemodell</td>
-      <td>4 standardintegrasjoner, 8 betalende kunder</td>
+      <td>Standardisert onboarding, bedre rapportering, tydeligere prispakker</td>
+      <td>2–4 betalende kunder, onboardingtid ned mot 1–2 uker</td>
     </tr>
     <tr>
-      <td>12+ mnd</td>
-      <td>Mobil/QR-opplevelse, IoT/data feeds, analytics-dashboards, enterprise SLA</td>
-      <td>50 kunder, 600 skjermer, NRR > 105%</td>
+      <td>12–24 mnd</td>
+      <td>1–2 standardintegrasjoner (f.eks. kalender/booking), enklere partnerleveranse</td>
+      <td>6–10 kunder, 35–80 skjermer</td>
+    </tr>
+    <tr>
+      <td>24–36 mnd</td>
+      <td>Mobil/QR-opplevelse, driftsdashboard, bedre analyse og supportprosess</td>
+      <td>12–18 kunder, 90–160 skjermer, positiv drift i base case</td>
     </tr>
   </table>
 
   <h2>9. Team og roller</h2>
-  <p><strong>Anbefalt team for 12–18 mnd:</strong></p>
+  <p><strong>Foreslått kapasitetsplan (ærlig og gjennomførbar):</strong></p>
   <table>
-    <tr><th>Rolle</th><th>Ansvar</th><th>Kapasitet</th></tr>
-    <tr><td>Produktleder</td><td>Roadmap, prioritering, kundeinnsikt</td><td>1,0 FTE</td></tr>
-    <tr><td>UX/UI</td><td>Editorflyt, kioskopplevelse, designsystem</td><td>0,5–1,0 FTE</td></tr>
-    <tr><td>Frontend/backend utvikling</td><td>Player, admin, API og integrasjoner</td><td>2,0–3,0 FTE</td></tr>
-    <tr><td>Kartdesigner/GIS</td><td>Kartproduksjon og kvalitet</td><td>0,5–1,0 FTE</td></tr>
-    <tr><td>Salg + partneransvar</td><td>Pilotkonvertering, kanalpartnere, pipeline</td><td>1,0–1,5 FTE</td></tr>
-    <tr><td>Support/implementering</td><td>Onboarding, opplæring, kundedrift</td><td>1,0 FTE</td></tr>
+    <tr><th>Periode</th><th>Teamoppsett</th><th>Mål</th></tr>
+    <tr><td>0–12 mnd</td><td>Grunnlegger (produkt + utvikling) + frilans design/kart ved behov</td><td>Bygge repeterbar pilot- og onboardingprosess uten høy fast kost</td></tr>
+    <tr><td>13–24 mnd</td><td>Grunnlegger + 0,5–1,0 ekstra leveranseressurs + partnerbasert salg</td><td>Øke leveransekapasitet og redusere personavhengighet</td></tr>
+    <tr><td>25–36 mnd</td><td>2–4 kjernemedlemmer (produkt/utvikling, levering/support, salg)</td><td>Skalerbar drift med tydelig rollefordeling</td></tr>
   </table>
 
-  <h2>10. Finansielle prognoser</h2>
+  <h2>10. Finansielle prognoser (3 år, realistisk base case)</h2>
   <h3>Nøkkelforutsetninger</h3>
   <ul>
-    <li>Blended ARPU: 1 350 kr/skjerm/mnd (signage + wayfinding + andel integrasjoner).</li>
-    <li>Gjennomsnitt skjermer per kunde: 8–12 avhengig av segment.</li>
-    <li>Engangsinntekt per ny kunde: 60 000–80 000 kr.</li>
-    <li>Bruttomargin: 78% på abonnement, 45% på engangstjenester.</li>
-    <li>Kundetilvekst er pipeline-basert (pilot → utrulling + partnerkanaler).</li>
+    <li>Dagens direkte teknisk driftskost er svært lav (ca. 200 kr/mnd), men øker når support, reise, verktøy og drift formaliseres.</li>
+    <li>Pris i tidlig fase holdes lav for å vinne referansekunder: 200–500 kr/skjerm/mnd.</li>
+    <li>Blended ARPU i base case: 450–750 kr/skjerm/mnd over 3-årsperioden.</li>
+    <li>Gjennomsnitt skjermer per kunde: 4–10 i år 1–2, økende i år 3.</li>
+    <li>Engangsinntekter per lokasjon: typisk 5 000–30 000 kr (kart + onboarding).</li>
+    <li>Kundetilvekst forutsetter konvertering fra pilot til betalende drift og enkel partnerkanal.</li>
   </ul>
 
   <h3>Prognose (12–36 mnd)</h3>
@@ -325,29 +328,28 @@
       <th>År 2 (13–24 mnd)</th>
       <th>År 3 (25–36 mnd)</th>
     </tr>
-    <tr><td>Betalende kunder (slutt periode)</td><td>8</td><td>22</td><td>50</td></tr>
-    <tr><td>Installert skjermbase (slutt periode)</td><td>70</td><td>220</td><td>600</td></tr>
-    <tr><td>Gjennomsnitt aktive skjermer</td><td>45</td><td>150</td><td>420</td></tr>
-    <tr><td>Abonnementsinntekt</td><td>0,73 MNOK</td><td>2,43 MNOK</td><td>6,80 MNOK</td></tr>
-    <tr><td>Engangsinntekt (kart/implementering)</td><td>0,56 MNOK</td><td>0,98 MNOK</td><td>1,68 MNOK</td></tr>
-    <tr><td>Total inntekt</td><td>1,29 MNOK</td><td>3,41 MNOK</td><td>8,48 MNOK</td></tr>
-    <tr><td>Estimert OPEX</td><td>3,00 MNOK</td><td>4,40 MNOK</td><td>5,90 MNOK</td></tr>
-    <tr><td>EBITDA (estimert)</td><td>-2,18 MNOK</td><td>-2,06 MNOK</td><td>+0,16 MNOK</td></tr>
+    <tr><td>Betalende kunder (slutt periode)</td><td>2–4</td><td>6–10</td><td>12–18</td></tr>
+    <tr><td>Installert skjermbase (slutt periode)</td><td>10–25</td><td>35–80</td><td>90–160</td></tr>
+    <tr><td>Årlig abonnementsinntekt</td><td>80 000–220 000 kr</td><td>350 000–850 000 kr</td><td>1 100 000–2 400 000 kr</td></tr>
+    <tr><td>Årlig engangsinntekt (kart/implementering)</td><td>50 000–180 000 kr</td><td>100 000–300 000 kr</td><td>200 000–550 000 kr</td></tr>
+    <tr><td>Total inntekt</td><td>130 000–400 000 kr</td><td>450 000–1 150 000 kr</td><td>1 300 000–2 950 000 kr</td></tr>
+    <tr><td>Estimert OPEX (lean drift)</td><td>200 000–450 000 kr</td><td>550 000–1 000 000 kr</td><td>1 200 000–2 000 000 kr</td></tr>
+    <tr><td>Driftsresultat (før grunnleggerlønn)</td><td>-250 000 til +200 000 kr</td><td>-550 000 til +200 000 kr</td><td>+100 000 til +950 000 kr</td></tr>
   </table>
 
   <h3>Break-even og investeringsbehov</h3>
   <ul>
-    <li><strong>Break-even:</strong> forventes rundt slutten av år 3 ved 350–430 gjennomsnitt aktive skjermer.</li>
-    <li><strong>Kapitalbehov:</strong> 6,2 MNOK for 18–24 måneders runway.</li>
+    <li><strong>Driftsmessig break-even:</strong> mulig rundt 80–120 aktive skjermer, avhengig av supportnivå og pris.</li>
+    <li><strong>Kapitalbehov (realistisk):</strong> 0–300 000 kr i ren bootstrap-modell, eller 0,8–1,8 MNOK hvis man ansetter tidlig og bygger salg raskere.</li>
   </ul>
   <table>
-    <tr><th>Investeringsområde</th><th>Beløp (MNOK)</th></tr>
-    <tr><td>Produktutvikling (player/admin/integrasjoner)</td><td>2,2</td></tr>
-    <tr><td>Kart/GIS-produksjon og metodikk</td><td>1,0</td></tr>
-    <tr><td>Salg, marked og partnerkanal</td><td>1,8</td></tr>
-    <tr><td>Sikkerhet, drift og compliance</td><td>0,7</td></tr>
-    <tr><td>Arbeidskapital/buffer</td><td>0,5</td></tr>
-    <tr><th>Totalt</th><th>6,2</th></tr>
+    <tr><th>Investeringsområde</th><th>Beløp (MNOK, intervall)</th></tr>
+    <tr><td>Produktstabilitet og videreutvikling</td><td>0,20–0,50</td></tr>
+    <tr><td>Kartproduksjon, design og metodikk</td><td>0,15–0,40</td></tr>
+    <tr><td>Pilotutrulling, kundereiser og implementering</td><td>0,10–0,30</td></tr>
+    <tr><td>Salg/marked og partneroppbygging</td><td>0,10–0,40</td></tr>
+    <tr><td>Buffer og uforutsette kostnader</td><td>0,10–0,20</td></tr>
+    <tr><th>Totalt mulig behov</th><th>0,65–1,80</th></tr>
   </table>
 
   <h2>11. Risikoanalyse</h2>
@@ -383,10 +385,15 @@
       <td>Driftsforstyrrelser ved tredjepartsfeil</td>
       <td>Fallback-strategi, redundansplan, gradvis flytting av kritisk metadata til DB</td>
     </tr>
+    <tr>
+      <td>Høy personavhengighet i tidlig fase</td>
+      <td>Leveranse stopper ved sykdom/kapasitetsmangel</td>
+      <td>Dokumenterte rutiner, standard onboarding, gradvis oppbygging av ekstra leveranseressurs</td>
+    </tr>
   </table>
 
   <div class="note">
-    <strong>Merk:</strong> Tall i denne planen er realistiske arbeidsestimater basert på nåværende produktmodenhet, pilotstatus og intern gjennomgang per 04.03.2026. Ved investorprosess anbefales kvartalsvis oppdatering med faktiske pilot-KPI-er (uptime, brukerinteraksjoner, onboarding-tid, churn og betalingsvilje).
+    <strong>Merk:</strong> Denne versjonen er bevisst nøktern og er laget for å være troverdig i dialog med Innovasjon Norge og andre støtteaktører. Tallene er intervaller (ikke løfter) og bør oppdateres kvartalsvis med faktiske data fra pilot: konvertering til betalende kunder, onboardingtid, oppetid, supporttimer og reell månedskost.
   </div>
 </body>
 </html>
