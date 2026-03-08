@@ -8,6 +8,10 @@ Dette er en samlet oversikt over prosjektnotater og sikkerhetsdokumentasjon.
 - `CHANGES_SUMMARY.md` — kort oppsummering av endringer
 - `INVESTOR_READINESS_ONE_PAGER.md` — investor/mentor-status, risiko og 30–60 dagers plan
 
+## Demo-lenker
+- `../demo/` — demo player (`?install=demo`)
+- `../demo-admin/` — demo admin (`admin/login.html?install=demo`)
+
 ## Sikkerhet
 - `SECURITY_CHECKLIST.md` — sjekkliste før deploy/demo
 - `SECURITY_HARDENING_IMPLEMENTATION.md` — gjennomførte hardening-tiltak
